@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Exercise Form Tracker</title>
+    <style>
+        .stop {
+            background: #ff4757;
+            color: white !important;
+        }
+        .stop:hover {
+            background: #ff3346;
+        }
+        .start {
+            background: #2ecc71;
+            color: white !important;
+        }
+        .start:hover {
+            background: #27ae60;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <img src="{{ url_for('video_feed') }}" class="video-feed">
+        <div class="controls">
+            <button onclick="changeMode('sq')">Squats</button>
+            <button onclick="changeMode('pu')">Push-ups</button>
+            <button onclick="changeMode('cu')">Curls</button>
+            <button id="startStop" class="start" onclick="toggleExercise()">Start</button>
+        </div>
+    </div>
+    <script>
+        let isExercising = false;
+        
+        function changeMode(mode) {
+            fetch(`/workout/change_mode/${mode}`);
+        }
+        
+        function toggleExercise() {
+            const button = document.getElementById('startStop');
+            if (!isExercising) {
+                fetch('/workout/start');
+                button.textContent = 'Stop';
+                button.classList.replace('start', 'stop');
+            } else {
+                fetch('/workout/stop');
+                button.textContent = 'Start';
+                button.classList.replace('stop', 'start');
+            }
+            isExercising = !isExercising;
+        }
+    </script>
+
+	<div class="heart-rate-display">
+    	<i class="fas fa-heartbeat"></i>
+    	<span id="heart-rate">--</span> BPM
+	</div>
+
+	<button onclick="connectHR()">Connect Heart Rate Monitor</button>
+
+	<script src="/static/heartrate.js"></script>
+	<script>
+    const polar = new PolarH10();
+    
+    	async function connectHR(){
+       		await polar.connect();
+   		}
+	</script>
+
+</body>
+</html>
