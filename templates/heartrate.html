@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Heart Rate Monitor</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.socket.io/4.0.1/socket.io.min.js"></script>
+</head>
+<body>
+    <h1>Heart Rate Monitor</h1>
+    <p>Current Heart Rate: <span id="currentHeartRate">--</span> bpm</p>
+    <p id="heartRateZone">Zone: --</p>
+    <canvas id="heartRateChart" width="400" height="200"></canvas>
+
+    <div>
+        <h2>Create Workout Profile</h2>
+        <form id="workoutForm">
+            <label for="name">Name:</label>
+            <input type="text" id="name" placeholder="Workout Name" required />
+            <label for="duration">Duration (minutes):</label>
+            <input type="number" id="duration" min="1" required />
+            <button type="submit">Save Profile</button>
+        </form>
+    </div>
+
+    <button id="startWorkout">Start Workout</button>
+
+    <script src="/static/heartrate.css"></script>
+	<script src="/static/heartrate.js"></script>
+</body>
+</html>
