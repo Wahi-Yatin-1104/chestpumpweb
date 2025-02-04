@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Workout</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.socket.io/4.0.1/socket.io.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+        }
+        #video-container {
+            display: inline-block;
+            position: relative;
+        }
+        video {
+            width: 640px;
+            height: 480px;
+            border: 2px solid #ccc;
+        }
+        .stats {
+            margin-top: 20px;
+            font-size: 18px;
+        }
+        canvas {
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Workout Session</h1>
+    <div id="video-container">
+        <img src="{{ url_for('video_feed') }}" id="video-stream" />
+    </div>
+    <div class="stats">
+        <p>Mode: <span id="mode">{{ mode }}</span></p>
+        <p>Reps: <span id="reps">0</span></p>
+        <p>Calories Burned: <span id="calories">0</span> kcal</p>
+        <p>Heart Rate: <span id="heartRate">--</span> bpm</p>
+        <p>Heart Rate Zone: <span id="heartRateZone">--</span></p>
+    </div>
+    <canvas id="heartRateChart" width="400" height="200"></canvas>
+    <script>
+        const socket = io();
+
+        const ctx = document.getElementById('heartRateChart').getContext('2d');
+        const heartRateData = {
+            labels: [],
+            datasets: [{
+                label: 'Heart Rate',
+                data: [],
+                borderColor: 'rgba(255, 99, 132, 1)',
+                borderWidth: 2,
+                fill: false
+            }]
+        };
+
+        const heartRateChart = new Chart(ctx, {
+            type: 'line',
+            data: heartRateData,
+            options: {
+                responsive: true,
+                scales: {
+                    x: { title: { display: true, text: 'Time' } },
+                    y: { title: { display: true, text: 'Heart Rate (bpm)' } }
+                }
+            }
+        });
+
+        function updateHeartRateZone(heartRate) {
+            if (heartRate < 100) return "Resting";
+            if (heartRate < 140) return "Fat Burn";
+            if (heartRate < 170) return "Cardio";
+            return "Peak";
+        }
+
+        socket.on("update_heart_rate", data => {
+            const heartRate = data.heartRate;
+            const time = data.time;
+            document.getElementById("heartRate").textContent = heartRate;
+            document.getElementById("heartRateZone").textContent = updateHeartRateZone(heartRate);
+
+            heartRateData.labels.push(time);
+            heartRateData.datasets[0].data.push(heartRate);
+            heartRateChart.update();
+        });
+
+        socket.on("update_stats", data => {
+            document.getElementById("mode").textContent = data.mode;
+            document.getElementById("reps").textContent = data.reps;
+            document.getElementById("calories").textContent = data.calories.toFixed(2);
+        });
+    </script>
+</body>
+</html>

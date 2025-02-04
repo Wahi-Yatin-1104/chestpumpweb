@@ -1,0 +1,12 @@
+.container {
+    position: relative;
+    width: 640px;
+    height: 480px;
+    margin: 0 auto;
+}
+
+video, canvas {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+}
