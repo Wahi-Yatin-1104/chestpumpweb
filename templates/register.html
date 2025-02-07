@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login - Pump Chest</title>
+    <title>Register - Pump Chest</title>
     <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
     <link rel="stylesheet" href="/static/styles.css">
     <link rel="stylesheet" href="/static/login_style.css">
@@ -15,8 +15,8 @@
 
     <section>
         <div class="login-box">
-            <form method="POST" action="{{ url_for('login') }}">
-                <h2>Login</h2>
+            <form method="POST" action="{{ url_for('register') }}">
+                <h2>Create Account</h2>
                 
                 {% with messages = get_flashed_messages() %}
                     {% if messages %}
@@ -25,6 +25,14 @@
                         {% endfor %}
                     {% endif %}
                 {% endwith %}
+                
+                <div class="input-box">
+                    <span class="icon">
+                        <i class='bx bx-user'></i>
+                    </span>
+                    <input type="text" name="name" required>
+                    <label>Name</label>
+                </div>
 
                 <div class="input-box">
                     <span class="icon">
@@ -42,31 +50,10 @@
                     <label>Password</label>
                 </div>
 
-                <div class="remember-forgot">
-                    <label><input type="checkbox" name="remember"> Remember me</label>
-                    <a href="{{ url_for('reset_password_request') }}">Forgot Password?</a>
-                </div>
-
-                <button type="submit">Login</button>
-
-                <div class="or-divider">
-                    <span>OR</span>
-                </div>
-
-                <div class="social-login">
-                    <a href="#" class="google-btn">
-                        <i class='bx bxl-google'></i> Sign in with Google
-                    </a>
-                    <a href="#" class="apple-btn">
-                        <i class='bx bxl-apple'></i> Sign in with Apple
-                    </a>
-                    <a href="#" class="facebook-btn">
-                        <i class='bx bxl-facebook'></i> Sign in with Facebook
-                    </a>
-                </div>
+                <button type="submit">Register</button>
 
                 <div class="register-link">
-                    <p>Don't have an account? <a href="{{ url_for('register') }}">Register</a></p>
+                    <p>Already have an account? <a href="{{ url_for('login') }}">Login</a></p>
                 </div>
             </form>
         </div>
