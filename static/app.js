@@ -1,31 +1,72 @@
-function startWorkout() {
-    fetch("/start_workout", { method: "POST" })
-        .then(response => response.json())
-        .then(data => alert(data.message));
-}
+document.addEventListener('DOMContentLoaded', () => {
+    // Remove loading screen
+    const loading = document.querySelector('.loading');
+    if (loading) {
+        loading.style.opacity = '0';
+        setTimeout(() => loading.remove(), 500);
+    }
 
-function stopWorkout() {
-    fetch("/stop_workout", { method: "POST" })
-        .then(response => response.json())
-        .then(data => {
-            alert(data.message);
-            console.log(data.data);
+    initializeAnimations();
+});
+
+function initializeAnimations() {
+    // Add show class to initial visible elements
+    const elements = document.querySelectorAll('[class*="animate-"]');
+    elements.forEach(element => {
+        if (isElementInViewport(element)) {
+            element.classList.add('show');
+        }
+    });
+
+    // Initialize intersection observer
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                entry.target.classList.add('show');
+                if (entry.target.classList.contains('counter')) {
+                    animateCounter(entry.target);
+                }
+            }
         });
+    }, {
+        threshold: 0.1,
+        rootMargin: '0px 0px -100px 0px'
+    });
+
+    elements.forEach(element => observer.observe(element));
 }
 
-function updateTracker() {
-    fetch("/process_frame", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({})
-    })
-        .then(response => response.json())
-        .then(data => {
-            document.getElementById("reps").innerText = data.reps;
-            document.getElementById("calories").innerText = data.calories.toFixed(2);
-            document.getElementById("warnings").innerText = data.warnings;
-            document.getElementById("mode").innerText = data.mode;
-        });
+function isElementInViewport(el) {
+    const rect = el.getBoundingClientRect();
+    return (
+        rect.top >= 0 &&
+        rect.left >= 0 &&
+        rect.bottom <= (window.innerHeight || document.documentElement.clientHeight) &&
+        rect.right <= (window.innerWidth || document.documentElement.clientWidth)
+    );
 }
 
-setInterval(updateTracker, 2000);
+// Smooth scrolling utility
+function smoothScroll(target, duration) {
+    const targetPosition = target.getBoundingClientRect().top;
+    const startPosition = window.pageYOffset;
+    const distance = targetPosition - startPosition;
+    let startTime = null;
+
+    function animation(currentTime) {
+        if (startTime === null) startTime = currentTime;
+        const timeElapsed = currentTime - startTime;
+        const run = ease(timeElapsed, startPosition, distance, duration);
+        window.scrollTo(0, run);
+        if (timeElapsed < duration) requestAnimationFrame(animation);
+    }
+
+    function ease(t, b, c, d) {
+        t /= d / 2;
+        if (t < 1) return c / 2 * t * t + b;
+        t--;
+        return -c / 2 * (t * (t - 2) - 1) + b;
+    }
+
+    requestAnimationFrame(animation);
+}

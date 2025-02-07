@@ -1,12 +1,18 @@
-from flask import Flask, render_template, Response, jsonify, request
-import cv2
-import mediapipe as mp
+from flask import Flask, render_template, Response, jsonify, request, redirect, url_for, flash
+from flask_login import LoginManager, login_user, logout_user, login_required, current_user
+from flask_mail import Mail, Message
+from werkzeug.security import generate_password_hash, check_password_hash
+from datetime import datetime, timedelta
+import os
+from dotenv import load_dotenv
+import secrets
+from models import db, User, PasswordReset
+import cv2  
+import mediapipe as mp  
 import numpy as np
 import time
-from datetime import datetime
 from flask_socketio import SocketIO, emit
-import os
-from werkzeug.security import generate_password_hash, check_password_hash
+from forms import ResetPasswordRequestForm, ResetPasswordForm
 
 app = Flask(__name__)
 socketio = SocketIO(app)
