@@ -1,0 +1,106 @@
+.workout-container {
+    padding: 6rem 5% 2rem;
+    min-height: 100vh;
+    background: var(--bg);
+}
+
+.workout-grid {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 2rem;
+}
+
+.video-section {
+    background: #111;
+    border-radius: 15px;
+    padding: 2rem;
+}
+
+.video-feed {
+    position: relative;
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.video-feed img {
+    width: 100%;
+    display: block;
+}
+
+.workout-metrics {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    background: rgba(0,0,0,0.8);
+    padding: 1rem;
+    border-radius: 8px;
+}
+
+.metric {
+    color: #fff;
+    margin-bottom: 0.5rem;
+}
+
+.metric span {
+    color: #45ffca;
+    margin-left: 0.5rem;
+}
+
+.controls {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1rem;
+    margin-top: 2rem;
+}
+
+.exercise-btn {
+    background: #000;
+    border: 1px solid #222;
+    color: #fff;
+    padding: 1rem;
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    transition: all 0.3s;
+}
+
+.exercise-btn:hover {
+    border-color: #45ffca;
+}
+
+.heart-rate-card {
+    background: #111;
+    border-radius: 15px;
+    padding: 2rem;
+}
+
+.current-rate {
+    font-size: 3rem;
+    color: #45ffca;
+    margin: 1rem 0;
+}
+
+.rate-zone {
+    display: inline-block;
+    padding: 0.5rem 1rem;
+    background: #45ffca;
+    color: #000;
+    border-radius: 20px;
+    margin-bottom: 1rem;
+}
+
+#heartRateChart {
+    background: #000;
+    border-radius: 8px;
+    padding: 1rem;
+    margin: 1rem 0;
+    height: 200px;
+}
+
+@media (max-width: 1024px) {
+    .workout-grid {
+        grid-template-columns: 1fr;
+    }
+}
