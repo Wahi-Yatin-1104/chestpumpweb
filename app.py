@@ -14,20 +14,43 @@ import time
 from flask_socketio import SocketIO, emit
 from forms import ResetPasswordRequestForm, ResetPasswordForm
 
-app = Flask(__name__)
-socketio = SocketIO(app)
-app.secret_key = os.urandom(24)
+# Load environment variables
+load_dotenv()
 
+# Initialize Flask and existing configurations
+app = Flask(__name__)
+app.config['SECRET_KEY'] = os.getenv('SECRET_KEY')
+app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL')
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+# Mail configuration
+app.config['MAIL_SERVER'] = os.getenv('MAIL_SERVER')
+app.config['MAIL_PORT'] = int(os.getenv('MAIL_PORT', 587))
+app.config['MAIL_USE_TLS'] = os.getenv('MAIL_USE_TLS', 'True') == 'True'
+app.config['MAIL_USERNAME'] = os.getenv('MAIL_USERNAME')
+app.config['MAIL_PASSWORD'] = os.getenv('MAIL_PASSWORD')
+
+# Initialize extensions
+db.init_app(app)
+mail = Mail(app)
+login_manager = LoginManager()
+login_manager.init_app(app)
+login_manager.login_view = 'login'
+
+# Initialize SocketIO
+socketio = SocketIO(app)
+
+# Initialize MediaPipe
 mp_pose = mp.solutions.pose
 mp_draw = mp.solutions.drawing_utils
 
+# Global variables for workout tracking
 mode = "sq"
 cnt = 0
 pos = None
-total_reps = {"sq":0, "cu":0, "pu":0}
+total_reps = {"sq": 0, "cu": 0, "pu": 0}
 cal_burnt = 0
 workout_start = None
-users = {}
 
 def get_ang(a, b, c):
     if not all([a,b,c]): return 0
@@ -39,26 +62,27 @@ def get_ang(a, b, c):
     if ang > 180.0: ang = 360-ang
     return ang
 
-def check_sq(pts):
-   hip = pts[mp_pose.PoseLandmark.LEFT_HIP.value]
-   knee = pts[mp_pose.PoseLandmark.LEFT_KNEE.value]
-   ankle = pts[mp_pose.PoseLandmark.LEFT_ANKLE.value]
-   shoulder = pts[mp_pose.PoseLandmark.LEFT_SHOULDER.value]
-   
-   k_ang = get_ang(hip, knee, ankle)
-   b_ang = get_ang(shoulder, hip, knee)
-   knee_dist = np.sqrt((knee.x - ankle.x)**2 + (knee.y - ankle.y)**2)
-   
-   issues = []
-   if b_ang < 160: issues.append("back not straight")
-   if k_ang < 90: issues.append("squat too deep")  
-   if knee_dist > 0.3: issues.append("knees over toes")
-   
-   if k_ang > 170:
-       return "up", not bool(issues), issues
-   elif k_ang < 100:
-       return "down", not bool(issues), issues
-   return None, True, issues
+def check_pu(pts):
+    shoulder = pts[mp_pose.PoseLandmark.LEFT_SHOULDER.value]
+    elbow = pts[mp_pose.PoseLandmark.LEFT_ELBOW.value]
+    wrist = pts[mp_pose.PoseLandmark.LEFT_WRIST.value]
+    hip = pts[mp_pose.PoseLandmark.LEFT_HIP.value]
+    ankle = pts[mp_pose.PoseLandmark.LEFT_ANKLE.value]
+
+    a_ang = get_ang(shoulder, elbow, wrist)
+    b_ang = get_ang(shoulder, hip, ankle)
+    hip_sag = abs(hip.y - shoulder.y)
+
+    issues = []
+    if not 160 < b_ang < 200: issues.append("body not straight")
+    if hip_sag > 0.1: issues.append("hips sagging")
+    if a_ang > 160: issues.append("go lower")
+
+    if a_ang > 150:
+        return "up", not bool(issues), issues
+    elif a_ang < 90:
+        return "down", not bool(issues), issues
+    return None, True, issues
 
 def check_pu(pts):
    shoulder = pts[mp_pose.PoseLandmark.LEFT_SHOULDER.value]
@@ -134,52 +158,52 @@ def check_exercise(pts):
 
 
 def gen_frames():
-   global mode, cnt, pos, cal_burnt, workout_start
-   
-   cap = cv2.VideoCapture(0)
-   workout_start = time.time()
-   font = cv2.FONT_HERSHEY_SIMPLEX
-   
-   with mp_pose.Pose(
-       min_detection_confidence=0.7,
-       min_tracking_confidence=0.7,
-       model_complexity=2
-   ) as pose:
-       while True:
-           success, frame = cap.read()
-           if not success: break
-               
-           frame = cv2.flip(frame, 1)
-           rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-           results = pose.process(rgb)
-           
-           if results.pose_landmarks:
-               mp_draw.draw_landmarks(
-                   frame,
-                   results.pose_landmarks,
-                   mp_pose.POSE_CONNECTIONS,
-                   mp_draw.DrawingSpec(color=(0,255,0), thickness=2, circle_radius=2),
-                   mp_draw.DrawingSpec(color=(0,0,255), thickness=2, circle_radius=2)
-               )
-               
-               issues = check_exercise(results.pose_landmarks.landmark)
-               msg = f"form: {'good' if not issues else ' & '.join(issues)}"
-           else:
-               msg = "no pose"
-               
-           duration = int(time.time() - workout_start)
-           mins, secs = divmod(duration, 60)
-           
-           cv2.putText(frame, f'MODE:{mode}', (10,30), font, 0.7, (0,255,0), 2)
-           cv2.putText(frame, f'CNT:{cnt}', (10,60), font, 0.7, (0,255,0), 2)
-           cv2.putText(frame, msg, (10,90), font, 0.7, (0,255,0) if "good" in msg else (0,0,255), 2)
-           cv2.putText(frame, f'TIME:{mins:02d}:{secs:02d}', (10,120), font, 0.7, (0,255,0), 2)
-           cv2.putText(frame, f'CAL:{int(cal_burnt)}', (10,150), font, 0.7, (0,255,0), 2)
-               
-           ret, buffer = cv2.imencode('.jpg', frame)
-           frame = buffer.tobytes()
-           yield (b'--frame\r\n'
-                  b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
+    global mode, cnt, pos, cal_burnt, workout_start
+
+    cap = cv2.VideoCapture(0)
+    workout_start = time.time()
+    font = cv2.FONT_HERSHEY_SIMPLEX
+
+    with mp_pose.Pose(
+        min_detection_confidence=0.7,
+        min_tracking_confidence=0.7,
+        model_complexity=2
+    ) as pose:
+        while True:
+            success, frame = cap.read()
+            if not success: break
+
+            frame = cv2.flip(frame, 1)
+            rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            results = pose.process(rgb)
+
+            if results.pose_landmarks:
+                mp_draw.draw_landmarks(
+                    frame,
+                    results.pose_landmarks,
+                    mp_pose.POSE_CONNECTIONS,
+                    mp_draw.DrawingSpec(color=(0, 255, 0), thickness=2, circle_radius=2),
+                    mp_draw.DrawingSpec(color=(0, 0, 255), thickness=2, circle_radius=2)
+                )
+
+                issues = check_exercise(results.pose_landmarks.landmark)
+                msg = f"form: {'good' if not issues else ' & '.join(issues)}"
+            else:
+                msg = "no pose"
+
+            duration = int(time.time() - workout_start)
+            mins, secs = divmod(duration, 60)
+
+            cv2.putText(frame, f'MODE:{mode}', (10, 30), font, 0.7, (0, 255, 0), 2)
+            cv2.putText(frame, f'CNT:{cnt}', (10, 60), font, 0.7, (0, 255, 0), 2)
+            cv2.putText(frame, msg, (10, 90), font, 0.7, (0, 255, 0) if "good" in msg else (0, 0, 255), 2)
+            cv2.putText(frame, f'TIME:{mins:02d}:{secs:02d}', (10, 120), font, 0.7, (0, 255, 0), 2)
+            cv2.putText(frame, f'CAL:{int(cal_burnt)}', (10, 150), font, 0.7, (0, 255, 0), 2)
+
+            ret, buffer = cv2.imencode('.jpg', frame)
+            frame = buffer.tobytes()
+            yield (b'--frame\r\n'
+                   b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
 
 @app.route('/')
 def home():
@@ -284,6 +308,33 @@ def stop_exercise():
     cal_burnt = 0
     workout_start = time.time()
     return jsonify({'success': True})
+
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    if request.method == 'POST':
+        email = request.form.get('email')
+        password = request.form.get('password')
+        name = request.form.get('name')
+
+        if User.query.filter_by(email=email).first():
+            flash('Email already registered')
+            return redirect(url_for('register'))
+
+        user = User(email=email, name=name)
+        user.set_password(password)
+        db.session.add(user)
+        db.session.commit()
+
+        login_user(user)
+        return redirect(url_for('workout'))
+
+    return render_template('register.html')
+
+@app.route('/logout')
+@login_required
+def logout():
+    logout_user()
+    return redirect(url_for('home'))
 
 @socketio.on("send_heart_rate")
 def handle_heart_rate(data):

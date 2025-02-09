@@ -1,5 +1,6 @@
 const socket = io();
 let isExercising = false;
+
 initChart();
 setupEventListeners();
 
