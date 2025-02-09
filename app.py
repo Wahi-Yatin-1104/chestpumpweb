@@ -53,13 +53,13 @@ cal_burnt = 0
 workout_start = None
 
 def get_ang(a, b, c):
-    if not all([a,b,c]): return 0
+    if not all([a, b, c]): return 0
     a = np.array([a.x, a.y])
-    b = np.array([b.x, b.y]) 
+    b = np.array([b.x, b.y])
     c = np.array([c.x, c.y])
-    rad = np.arctan2(c[1]-b[1], c[0]-b[0]) - np.arctan2(a[1]-b[1], a[0]-b[0])
-    ang = np.abs(rad*180.0/np.pi)
-    if ang > 180.0: ang = 360-ang
+    rad = np.arctan2(c[1] - b[1], c[0] - b[0]) - np.arctan2(a[1] - b[1], a[0] - b[0])
+    ang = np.abs(rad * 180.0 / np.pi)
+    if ang > 180.0: ang = 360 - ang
     return ang
 
 def check_pu(pts):
@@ -107,24 +107,24 @@ def check_pu(pts):
    return None, True, issues
 
 def check_cu(pts):
-   shoulder = pts[mp_pose.PoseLandmark.RIGHT_SHOULDER.value]
-   elbow = pts[mp_pose.PoseLandmark.RIGHT_ELBOW.value]
-   wrist = pts[mp_pose.PoseLandmark.RIGHT_WRIST.value]
-   
-   ang = get_ang(shoulder, elbow, wrist)
-   drift = abs(elbow.x - shoulder.x)
-   wrist_mov = abs(wrist.x - elbow.x)
-   
-   issues = []
-   if drift > 0.1: issues.append("elbows out")
-   if wrist_mov > 0.15: issues.append("wrist not stable")
-   if ang > 160: issues.append("extend fully")
-   
-   if ang > 150:
-       return "down", not bool(issues), issues
-   elif ang < 60:
-       return "up", not bool(issues), issues
-   return None, True, issues
+    shoulder = pts[mp_pose.PoseLandmark.RIGHT_SHOULDER.value]
+    elbow = pts[mp_pose.PoseLandmark.RIGHT_ELBOW.value]
+    wrist = pts[mp_pose.PoseLandmark.RIGHT_WRIST.value]
+
+    ang = get_ang(shoulder, elbow, wrist)
+    drift = abs(elbow.x - shoulder.x)
+    wrist_mov = abs(wrist.x - elbow.x)
+
+    issues = []
+    if drift > 0.1: issues.append("elbows out")
+    if wrist_mov > 0.15: issues.append("wrist not stable")
+    if ang > 160: issues.append("extend fully")
+
+    if ang > 150:
+        return "down", not bool(issues), issues
+    elif ang < 60:
+        return "up", not bool(issues), issues
+    return None, True, issues
 
 def check_exercise(pts):
     global cnt, pos, total_reps, cal_burnt, mode
@@ -207,7 +207,7 @@ def gen_frames():
 
 @app.route('/')
 def home():
-    return render_template('index.html')\
+    return render_template('index.html')
     
 @app.route('/login')
 def login():
