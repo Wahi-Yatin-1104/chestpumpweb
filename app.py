@@ -211,6 +211,16 @@ def home():
     
 @app.route('/login')
 def login():
+    if request.method == 'POST':
+        email = request.form.get('email')
+        password = request.form.get('password')
+        user = User.query.filter_by(email=email).first()
+
+        if user and user.check_password(password):
+            login_user(user)
+            return redirect(url_for('workout'))
+
+        flash('Invalid email or password')
     return render_template('login.html')
 
 @app.route('/register')
@@ -264,6 +274,35 @@ def api_register():
         'success': True,
         'message': 'Registration successful'
     })
+
+@app.route('/reset-password-request', methods=['GET', 'POST'])
+def reset_password_request():
+    form = ResetPasswordRequestForm()
+    if form.validate_on_submit():
+        email = form.email.data
+        user = User.query.filter_by(email=email).first()
+
+        if user:
+            token = secrets.token_urlsafe(32)
+            reset_token = PasswordReset(
+                user_id=user.id,
+                token=token,
+                expires_at=datetime.utcnow() + timedelta(hours=24)
+            )
+            db.session.add(reset_token)
+            db.session.commit()
+
+            reset_url = url_for('reset_password', token=token, _external=True)
+            msg = Message('Password Reset Request',
+                          sender=app.config['MAIL_USERNAME'],
+                          recipients=[user.email])
+            msg.body = f'To reset your password, visit the following link: {reset_url}'
+            mail.send(msg)
+
+            flash('Check your email for password reset instructions')
+            return redirect(url_for('login'))
+
+    return render_template('reset_request.html', form=form)
 
 @app.route('/reset-password/<token>', methods=['GET', 'POST'])
 def reset_password(token):
@@ -329,6 +368,18 @@ def register():
         return redirect(url_for('workout'))
 
     return render_template('register.html')
+
+
+
+@app.route('/get-started')
+def get_started():
+    if current_user.is_authenticated:
+        return redirect(url_for('workout'))
+    else:
+        return redirect(url_for('login'))
+        
+with app.app_context():
+    db.create_all()
 
 @app.route('/logout')
 @login_required
