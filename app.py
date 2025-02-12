@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 import os
 from dotenv import load_dotenv
 import secrets
-from models import db, User, PasswordReset
+from models import db, User, PasswordReset, BMIHistory
 import cv2  
 import mediapipe as mp  
 import numpy as np
@@ -62,25 +62,26 @@ def get_ang(a, b, c):
     if ang > 180.0: ang = 360 - ang
     return ang
 
-def check_pu(pts):
-    shoulder = pts[mp_pose.PoseLandmark.LEFT_SHOULDER.value]
-    elbow = pts[mp_pose.PoseLandmark.LEFT_ELBOW.value]
-    wrist = pts[mp_pose.PoseLandmark.LEFT_WRIST.value]
+def check_sq(pts):
     hip = pts[mp_pose.PoseLandmark.LEFT_HIP.value]
+    knee = pts[mp_pose.PoseLandmark.LEFT_KNEE.value]
     ankle = pts[mp_pose.PoseLandmark.LEFT_ANKLE.value]
+    shoulder = pts[mp_pose.PoseLandmark.LEFT_SHOULDER.value]
 
-    a_ang = get_ang(shoulder, elbow, wrist)
-    b_ang = get_ang(shoulder, hip, ankle)
-    hip_sag = abs(hip.y - shoulder.y)
+    k_ang = get_ang(hip, knee, ankle)
+    b_ang = get_ang(shoulder, hip, knee)
+    knee_dist = np.sqrt((knee.x - ankle.x) ** 2 + (knee.y - ankle.y) ** 2)
 
     issues = []
-    if not 160 < b_ang < 200: issues.append("body not straight")
-    if hip_sag > 0.1: issues.append("hips sagging")
-    if a_ang > 160: issues.append("go lower")
-
-    if a_ang > 150:
+    if b_ang < 160:
+        issues.append("back not straight")
+    if k_ang < 90:
+        issues.append("squat too deep")
+    if knee_dist > 0.3:
+        issues.append("knees over toes")
+    if k_ang > 170:
         return "up", not bool(issues), issues
-    elif a_ang < 90:
+    elif k_ang < 100:
         return "down", not bool(issues), issues
     return None, True, issues
 
@@ -127,43 +128,61 @@ def check_cu(pts):
     return None, True, issues
 
 def check_exercise(pts):
-    global cnt, pos, total_reps, cal_burnt, mode
-    
+    global cnt, pos, total_reps, cal_burnt, mode, current_workout_session
+
     new_pos = None
     good = True
     issues = []
-    
+
     if mode == "sq":
         new_pos, good, issues = check_sq(pts)
     elif mode == "cu":
         new_pos, good, issues = check_cu(pts)
     elif mode == "pu":
         new_pos, good, issues = check_pu(pts)
-        
+
     if new_pos != pos:
         if pos and good:
-            cal_burnt += {"sq": 0.32, "cu": 0.15, "pu": 0.28}[mode]
+            calories = {"sq": 0.32, "cu": 0.15, "pu": 0.28}[mode]
+            cal_burnt += calories
+            
+            with app.app_context():
+                try:
+                    if current_workout_session:
+                        current_workout_session.calories_burned = round(cal_burnt, 2)
+                        
+                        if workout_start:
+                            current_duration = int(time.time() - workout_start)
+                            current_workout_session.duration = current_duration
+                        
+                        exercise_data = current_workout_session.exercise_data or {}
+                        exercise_data[mode] = total_reps[mode]
+                        current_workout_session.exercise_data = exercise_data
+                        current_workout_session.is_completed = False
+                        
+                        db.session.commit()
+                except Exception as e:
+                    db.session.rollback()
+                
         pos = new_pos
         if pos == "up" and good:
             cnt += 1
             total_reps[mode] += 1
-        
-        socketio.emit("update_stats", {
+
+        duration = int(time.time() - workout_start) if workout_start else 0
+        stats_update = {
             "mode": mode,
             "reps": cnt,
-            "calories": cal_burnt
-        })
-        
+            "calories": round(cal_burnt, 2),
+            "duration": duration,
+            "form_issues": issues
+        }
+        socketio.emit("update_stats", stats_update)
+
     return issues
 
-
 def gen_frames():
-    global mode, cnt, pos, cal_burnt, workout_start
-
     cap = cv2.VideoCapture(0)
-    workout_start = time.time()
-    font = cv2.FONT_HERSHEY_SIMPLEX
-
     with mp_pose.Pose(
         min_detection_confidence=0.7,
         min_tracking_confidence=0.7,
@@ -171,39 +190,55 @@ def gen_frames():
     ) as pose:
         while True:
             success, frame = cap.read()
-            if not success: break
+            if not success:
+                break
 
-            frame = cv2.flip(frame, 1)
-            rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            results = pose.process(rgb)
+            try:
+                frame = cv2.flip(frame, 1)
+                rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                results = pose.process(rgb)
 
-            if results.pose_landmarks:
-                mp_draw.draw_landmarks(
-                    frame,
-                    results.pose_landmarks,
-                    mp_pose.POSE_CONNECTIONS,
-                    mp_draw.DrawingSpec(color=(0, 255, 0), thickness=2, circle_radius=2),
-                    mp_draw.DrawingSpec(color=(0, 0, 255), thickness=2, circle_radius=2)
-                )
+                if results.pose_landmarks:
+                    mp_draw.draw_landmarks(
+                        frame,
+                        results.pose_landmarks,
+                        mp_pose.POSE_CONNECTIONS,
+                        mp_draw.DrawingSpec(color=(0, 255, 0), thickness=2, circle_radius=2),
+                        mp_draw.DrawingSpec(color=(0, 0, 255), thickness=2, circle_radius=2)
+                    )
 
-                issues = check_exercise(results.pose_landmarks.landmark)
-                msg = f"form: {'good' if not issues else ' & '.join(issues)}"
-            else:
-                msg = "no pose"
+                    try:
+                        issues = check_exercise(results.pose_landmarks.landmark)
+                        if issues:
+                            overlay = frame.copy()
+                            cv2.addWeighted(overlay, 0.3, frame, 0.7, 0, frame)
+                            msg = ' & '.join(issues)
+                            cv2.putText(frame, f'form: {msg}', (10, 90), 
+                                      cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
+                        else:
+                            cv2.putText(frame, 'form: good', (10, 90), 
+                                      cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+                    except Exception as e:
+                        print(f"Error processing exercise: {e}")
 
-            duration = int(time.time() - workout_start)
-            mins, secs = divmod(duration, 60)
+                cv2.putText(frame, f'MODE:{mode}', (10, 30), 
+                           cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+                cv2.putText(frame, f'CNT:{cnt}', (10, 60), 
+                           cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+                cv2.putText(frame, f'CAL:{cal_burnt:.1f}', (10, 150), 
+                           cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
 
-            cv2.putText(frame, f'MODE:{mode}', (10, 30), font, 0.7, (0, 255, 0), 2)
-            cv2.putText(frame, f'CNT:{cnt}', (10, 60), font, 0.7, (0, 255, 0), 2)
-            cv2.putText(frame, msg, (10, 90), font, 0.7, (0, 255, 0) if "good" in msg else (0, 0, 255), 2)
-            cv2.putText(frame, f'TIME:{mins:02d}:{secs:02d}', (10, 120), font, 0.7, (0, 255, 0), 2)
-            cv2.putText(frame, f'CAL:{int(cal_burnt)}', (10, 150), font, 0.7, (0, 255, 0), 2)
+                duration = int(time.time() - workout_start) if workout_start else 0
+                mins, secs = divmod(duration, 60)
+                cv2.putText(frame, f'TIME:{mins:02d}:{secs:02d}', (10, 120), 
+                           cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
 
-            ret, buffer = cv2.imencode('.jpg', frame)
-            frame = buffer.tobytes()
-            yield (b'--frame\r\n'
-                   b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
+                ret, buffer = cv2.imencode('.jpg', frame)
+                frame = buffer.tobytes()
+                yield (b'--frame\r\n'
+                       b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
+            except Exception as e:
+                continue
 
 @app.route('/')
 def home():
@@ -369,6 +404,7 @@ def register():
 
     return render_template('register.html')
 
+<<<<<<< Updated upstream
 
 
 @app.route('/get-started')
@@ -380,6 +416,68 @@ def get_started():
         
 with app.app_context():
     db.create_all()
+=======
+@app.route('/api/save-bmi', methods=['POST'])
+@login_required
+def save_bmi():
+    try:
+        data = request.get_json()
+        height = float(data.get('height'))
+        weight = float(data.get('weight'))
+        bmi = float(data.get('bmi'))
+        
+        bmi_record = BMIHistory(
+            user_id=current_user.id,
+            height=height,
+            weight=weight,
+            bmi=bmi
+        )
+        db.session.add(bmi_record)
+        
+        if current_user.profile:
+            current_user.profile.height = height
+            current_user.profile.weight = weight
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'BMI data saved successfully'
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            'success': False,
+            'message': 'Failed to save BMI data'
+        }), 500
+
+@app.route('/api/bmi-history')
+@login_required
+def get_bmi_history():
+    try:
+        history = BMIHistory.query.filter_by(
+            user_id=current_user.id
+        ).order_by(BMIHistory.date.desc()).limit(10).all()
+        
+        history_data = [{
+            'date': record.date.strftime('%Y-%m-%d'),
+            'bmi': record.bmi,
+            'weight': record.weight,
+            'height': record.height
+        } for record in history]
+        
+        return jsonify({
+            'success': True,
+            'data': history_data
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': 'Failed to fetch BMI history'
+        }), 500
+>>>>>>> Stashed changes
 
 @app.route('/logout')
 @login_required
@@ -389,8 +487,13 @@ def logout():
 
 @socketio.on("send_heart_rate")
 def handle_heart_rate(data):
-    print(f"Received Heart Rate Data: {data}")
-    emit("update_heart_rate", data, broadcast=True)
+    try:
+        if current_workout_session:
+            current_workout_session.avg_heart_rate = data.get('heartRate', 0)
+            db.session.commit()
+        emit("update_heart_rate", data, broadcast=True)
+    except Exception as e:
+        db.session.rollback()
 
 if __name__ == '__main__':
     socketio.run(app, debug=True)
