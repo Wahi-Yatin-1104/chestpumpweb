@@ -416,7 +416,7 @@ def get_started():
         
 with app.app_context():
     db.create_all()
-=======
+
 @app.route('/api/save-bmi', methods=['POST'])
 @login_required
 def save_bmi():
