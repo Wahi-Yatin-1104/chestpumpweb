@@ -48,7 +48,7 @@ mp_draw = mp.solutions.drawing_utils
 mode = "sq"
 cnt = 0
 pos = None
-total_reps = {"sq": 0, "cu": 0, "pu": 0}
+total_reps = {"sq": 0, "cu": 0, "pu": 0, "lu": 0, "pl": 0, "cr": 0}
 cal_burnt = 0
 workout_start = None
 
@@ -124,6 +124,73 @@ def check_cu(pts):
     if ang > 150:
         return "down", not bool(issues), issues
     elif ang < 60:
+        return "up", not bool(issues), issues
+    return None, True, issues
+
+def check_lunge(pts):
+    left_hip = pts[mp_pose.PoseLandmark.LEFT_HIP.value]
+    left_knee = pts[mp_pose.PoseLandmark.LEFT_KNEE.value]
+    left_ankle = pts[mp_pose.PoseLandmark.LEFT_ANKLE.value]
+    right_knee = pts[mp_pose.PoseLandmark.RIGHT_KNEE.value]
+    right_ankle = pts[mp_pose.PoseLandmark.RIGHT_ANKLE.value]
+    shoulder = pts[mp_pose.PoseLandmark.LEFT_SHOULDER.value]
+
+    front_knee_angle = get_ang(left_hip, left_knee, left_ankle)
+    back_knee_angle = get_ang(left_hip, right_knee, right_ankle)
+    torso_angle = get_ang(shoulder, left_hip, left_knee)
+
+    issues = []
+    if front_knee_angle > 100:
+        issues.append("bend front knee more")
+    if back_knee_angle > 100:
+        issues.append("lower back knee")
+    if torso_angle < 160:
+        issues.append("keep torso upright")
+    if front_knee_angle > 150 and back_knee_angle > 150:
+        return "up", not bool(issues), issues
+    elif front_knee_angle < 100 and back_knee_angle < 100:
+        return "down", not bool(issues), issues
+    return None, True, issues
+
+def check_plank(pts):
+    shoulder = pts[mp_pose.PoseLandmark.LEFT_SHOULDER.value]
+    elbow = pts[mp_pose.PoseLandmark.LEFT_ELBOW.value]
+    hip = pts[mp_pose.PoseLandmark.LEFT_HIP.value]
+    knee = pts[mp_pose.PoseLandmark.LEFT_KNEE.value]
+    ankle = pts[mp_pose.PoseLandmark.LEFT_ANKLE.value]
+    
+    arm_angle = get_ang(shoulder, elbow, hip)
+    body_angle = get_ang(shoulder, hip, ankle)
+    leg_angle = get_ang(hip, knee, ankle)
+
+    issues = []
+    if arm_angle < 75 or arm_angle > 105:
+        issues.append("align shoulders over elbows")
+    if body_angle < 160:
+        issues.append("straighten body")
+    if leg_angle < 160:
+        issues.append("straighten legs")
+    if arm_angle >= 75 and arm_angle <= 105 and body_angle >= 160 and leg_angle >= 160:
+        return "hold", not bool(issues), issues
+    return None, True, issues
+
+def check_crunch(pts):
+    shoulder = pts[mp_pose.PoseLandmark.LEFT_SHOULDER.value]
+    hip = pts[mp_pose.PoseLandmark.LEFT_HIP.value]
+    knee = pts[mp_pose.PoseLandmark.LEFT_KNEE.value]
+    ankle = pts[mp_pose.PoseLandmark.LEFT_ANKLE.value]
+
+    trunk_angle = get_ang(shoulder, hip, knee)
+    leg_angle = get_ang(hip, knee, ankle)
+
+    issues = []
+    if leg_angle > 100:
+        issues.append("keep knees bent")
+    if trunk_angle > 130:
+        issues.append("crunch higher")
+    if trunk_angle > 150:
+        return "down", not bool(issues), issues
+    elif trunk_angle < 110:
         return "up", not bool(issues), issues
     return None, True, issues
 

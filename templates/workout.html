@@ -1,71 +1,152 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Exercise Form Tracker</title>
-    <style>
-        .stop {
-            background: #ff4757;
-            color: white !important;
-        }
-        .stop:hover {
-            background: #ff3346;
-        }
-        .start {
-            background: #2ecc71;
-            color: white !important;
-        }
-        .start:hover {
-            background: #27ae60;
-        }
-    </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Workout - Pump Chest</title>
+    <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
+    <link rel="stylesheet" href="/static/styles.css">
+    <link rel="stylesheet" href="/static/workout.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.socket.io/4.0.1/socket.io.min.js"></script>
 </head>
 <body>
-    <div class="container">
-        <img src="{{ url_for('video_feed') }}" class="video-feed">
-        <div class="controls">
-            <button onclick="changeMode('sq')">Squats</button>
-            <button onclick="changeMode('pu')">Push-ups</button>
-            <button onclick="changeMode('cu')">Curls</button>
-            <button id="startStop" class="start" onclick="toggleExercise()">Start</button>
+    <nav class="nav-container">
+        <a href="/" class="logo">Pump <span>Chest</span></a>
+        <div class="nav-btns">
+            <a href="/dashboard" class="btn outline">Dashboard</a>
+            <a href="/logout" class="btn outline">Logout</a>
+        </div>
+    </nav>
+
+    <div class="workout-container" style="padding-top: 7rem;">
+        <div class="workout-card">
+            <div class="card-header">
+                <h2>Form Analysis</h2>
+                <div class="mode-badge" id="currentMode">
+                    Mode: <span id="mode">--</span>
+                </div>
+            </div>
+            
+            <div class="camera-feed">
+                <img src="{{ url_for('video_feed') }}" alt="Video Feed">
+            </div>
+            
+            <div class="stats-display">
+                <div class="stat-item">
+                    <div class="stat-value" id="reps">0</div>
+                    <div class="stat-label">Reps</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="calories">0.0</div>
+                    <div class="stat-label">Calories</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="time">00:00</div>
+                    <div class="stat-label">Duration</div>
+                </div>
+                <div class="stat-item form-status">
+                    <div class="stat-value" id="formStatus">Good</div>
+                    <div class="stat-label">Form</div>
+                </div>
+            </div>
+
+            <div class="exercise-categories">
+                <button class="category-btn active" onclick="showCategory('bodyweight')">Bodyweight</button>
+                <button class="category-btn" onclick="showCategory('weights')">Weights</button>
+            </div>
+
+            <div class="workout-controls bodyweight-exercises">
+                <button class="control-btn exercise-btn" onclick="changeMode('sq')" data-mode="sq">
+                    <i class='bx bx-run'></i>
+                    Squats
+                </button>
+                <button class="control-btn exercise-btn" onclick="changeMode('pu')" data-mode="pu">
+                    <i class='bx bx-body'></i>
+                    Push-ups
+                </button>
+                <button class="control-btn exercise-btn" onclick="changeMode('lu')" data-mode="lu">
+                    <i class='bx bx-walk'></i>
+                    Lunges
+                </button>
+                <button class="control-btn exercise-btn" onclick="changeMode('pl')" data-mode="pl">
+                    <i class='bx bx-timer'></i>
+                    Plank
+                </button>
+                <button class="control-btn exercise-btn" onclick="changeMode('cr')" data-mode="cr">
+                    <i class='bx bx-refresh'></i>
+                    Crunches
+                </button>
+            </div>
+
+            <div class="workout-controls weights-exercises" style="display: none;">
+                <button class="control-btn exercise-btn" onclick="changeMode('cu')" data-mode="cu">
+                    <i class='bx bx-dumbbell'></i>
+                    Bicep Curls
+                </button>
+            </div>
+
+            <div class="workout-controls control-buttons">
+                <button class="control-btn" id="startStop" onclick="toggleExercise()">
+                    <i class='bx bx-play'></i>
+                    Start
+                </button>
+                <button class="control-btn finish-btn" id="finishWorkout" onclick="finishWorkout()" style="display: none;">
+                    <i class='bx bx-check-circle'></i>
+                    Finish Workout
+                </button>
+            </div>
+        </div>
+
+        <div class="workout-card">
+            <div class="card-header">
+                <h2>Heart Rate</h2>
+                <button id="connectBtn" class="connect-button" onclick="connectHR()">
+                    <i class='bx bx-heart'></i>
+                    Connect
+                </button>
+            </div>
+            
+            <div class="heart-rate-display">
+                <div class="bpm-display">
+                    <span id="heartRate">--</span>
+                    <span class="bpm-label">BPM</span>
+                </div>
+                <div id="heartRateZone" class="zone-indicator">
+                    Resting
+                </div>
+            </div>
+            
+            <div class="chart-container">
+                <canvas id="heartRateChart"></canvas>
+            </div>
         </div>
     </div>
-    <script>
-        let isExercising = false;
-        
-        function changeMode(mode) {
-            fetch(`/workout/change_mode/${mode}`);
-        }
-        
-        function toggleExercise() {
-            const button = document.getElementById('startStop');
-            if (!isExercising) {
-                fetch('/workout/start');
-                button.textContent = 'Stop';
-                button.classList.replace('start', 'stop');
-            } else {
-                fetch('/workout/stop');
-                button.textContent = 'Start';
-                button.classList.replace('stop', 'start');
-            }
-            isExercising = !isExercising;
-        }
-    </script>
 
-	<div class="heart-rate-display">
-    	<i class="fas fa-heartbeat"></i>
-    	<span id="heart-rate">--</span> BPM
-	</div>
+    <div id="workoutModal" class="modal">
+        <div class="modal-content">
+            <h2>Workout Complete!</h2>
+            <div class="workout-summary">
+                <div class="summary-stat">
+                    <span class="label">Total Reps:</span>
+                    <span class="value" id="modalReps">0</span>
+                </div>
+                <div class="summary-stat">
+                    <span class="label">Calories Burned:</span>
+                    <span class="value" id="modalCalories">0</span>
+                </div>
+                <div class="summary-stat">
+                    <span class="label">Duration:</span>
+                    <span class="value" id="modalDuration">00:00</span>
+                </div>
+            </div>
+            <div class="modal-buttons">
+                <button onclick="window.location.href='/dashboard'" class="btn primary">Go to Dashboard</button>
+                <button onclick="startNewWorkout()" class="btn outline">New Workout</button>
+            </div>
+        </div>
+    </div>
 
-	<button onclick="connectHR()">Connect Heart Rate Monitor</button>
-
-	<script src="/static/heartrate.js"></script>
-	<script>
-    const polar = new PolarH10();
-    
-    	async function connectHR(){
-       		await polar.connect();
-   		}
-	</script>
-
+    <script src="{{ url_for('static', filename='workout.js') }}"></script>
 </body>
 </html>
