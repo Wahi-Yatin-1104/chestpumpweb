@@ -3,40 +3,37 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Reset Password Request</title>
-    <style>
-        body {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            margin: 0;
-            font-family: Arial, sans-serif;
-        }
-        form {
-            width: 300px;
-            text-align: center;
-        }
-        input[type="email"], input[type="submit"] {
-            width: 100%;
-            padding: 10px;
-            margin: 10px 0;
-        }
-    </style>
+    <title>Reset Password Request - Pump Chest</title>
+    <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
+    <link rel="stylesheet" href="/static/styles.css">
+    <link rel="stylesheet" href="/static/login_style.css">
 </head>
 <body>
-    <form method="POST" action="">
-        {{ form.hidden_tag() }}
-        <div>
-            {{ form.email.label }}<br>
-            {{ form.email(size=32) }}<br>
+    <nav class="nav-container">
+        <a href="/" class="logo">Pump <span>Chest</span></a>
+    </nav>
+
+    <div class="login-box">
+        <h2>Reset Password</h2>
+        <form method="POST" action="">
+            {{ form.hidden_tag() }}
+            <div class="input-box">
+                <span class="icon">
+                    <i class='bx bx-envelope'></i>
+                </span>
+                {{ form.email(size=32) }}
+                <label>Email</label>
+            </div>
             {% for error in form.email.errors %}
-                <span style="color: red;">[{{ error }}]</span>
+                <span class="error">{{ error }}</span>
             {% endfor %}
-        </div>
-        <div>
-            {{ form.submit() }}
-        </div>
-    </form>
+            
+            <button type="submit">Request Password Reset</button>
+            
+            <div class="register-link">
+                <p>Remember your password? <a href="{{ url_for('login') }}">Login</a></p>
+            </div>
+        </form>
+    </div>
 </body>
 </html>

@@ -474,6 +474,44 @@ def register():
 <<<<<<< Updated upstream
 
 
+@app.route('/contact', methods=['GET', 'POST'])
+def contact():
+    if request.method == 'POST':
+        # Get form data
+        name = request.form.get('name')
+        email = request.form.get('email')
+        message = request.form.get('message')
+        
+        try:
+            # Create and send email
+            msg = Message(
+                subject=f"Contact Form Submission from {name}",
+                sender=app.config['MAIL_USERNAME'],
+                recipients=[app.config['MAIL_USERNAME']]  # Send to your support email
+            )
+            msg.body = f"""
+            Name: {name}
+            Email: {email}
+
+            Message:
+            {message}
+            """
+            
+            mail.send(msg)
+            
+            flash('Your message has been sent successfully!', 'success')
+            return redirect(url_for('contact'))
+        
+        except Exception as e:
+            print(f"Error sending contact form: {e}")
+            flash('An error occurred. Please try again later.', 'error')
+    
+    return render_template('contact.html')
+
+@app.route('/privacy-policy')
+def privacy_policy():
+    return render_template('privacy_policy.html')
+
 @app.route('/get-started')
 def get_started():
     if current_user.is_authenticated:
