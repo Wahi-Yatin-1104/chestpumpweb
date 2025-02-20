@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Workout History - Pump Chest</title>
+    <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
+    <link rel="stylesheet" href="/static/styles.css">
+    <link rel="stylesheet" href="/static/workout_history.css">
+</head>
+<body>
+    <nav class="nav-container">
+        <a href="/" class="logo">Pump <span>Chest</span></a>
+        <div class="nav-btns">
+            <a href="/dashboard" class="btn outline">Dashboard</a>
+            <a href="/logout" class="btn outline">Logout</a>
+        </div>
+    </nav>
+
+    <div class="calendar-container">
+        <div class="calendar">
+            <div class="calendar-header">
+                <h2 id="calendarTitle">Loading...</h2>
+                <div class="calendar-nav">
+                    <button onclick="previousMonth()" class="nav-btn">
+                        <i class='bx bx-chevron-left'></i>
+                    </button>
+                    <button onclick="goToToday()" class="today-btn">Today</button>
+                    <button onclick="nextMonth()" class="nav-btn">
+                        <i class='bx bx-chevron-right'></i>
+                    </button>
+                </div>
+            </div>
+
+            <div class="weekday-labels">
+                <div class="weekday-label">Sun</div>
+                <div class="weekday-label">Mon</div>
+                <div class="weekday-label">Tue</div>
+                <div class="weekday-label">Wed</div>
+                <div class="weekday-label">Thu</div>
+                <div class="weekday-label">Fri</div>
+                <div class="weekday-label">Sat</div>
+            </div>
+
+            <div class="calendar-grid" id="calendarDays">
+            </div>
+        </div>
+    </div>
+
+    <div class="workout-modal" id="workoutModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Workout Details</h3>
+                <button class="modal-close" onclick="closeModal()">
+                    <i class='bx bx-x'></i>
+                </button>
+            </div>
+            <div class="workout-details" id="workoutDetails">
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/workout_history.js"></script>
+</body>
+</html>
