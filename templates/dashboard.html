@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Pump Chest</title>
+    <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
+    <link rel="stylesheet" href="/static/styles.css">
+    <link rel="stylesheet" href="/static/dashboard.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <nav class="nav-container">
+        <a href="/" class="logo">Pump <span>Chest</span></a>
+        <div class="nav-btns">
+            <a href="/workout" class="btn primary">Start Workout</a>
+            <a href="/logout" class="btn outline">Logout</a>
+        </div>
+    </nav>
+
+
+
+    <div class="dashboard-container">
+        <div class="dashboard-header">
+            <h1>Welcome back, {{ user.name }}!</h1>
+            <div class="streak-counter">
+                <i class='bx bxs-flame'></i>
+                <span>{{ user.streak_count }} Day Streak</span>
+            </div>
+        </div>
+
+
+
+        <div class="stats-grid">
+    <div class="stat-card">
+        <i class='bx bx-calendar-check'></i>
+        <div class="stat-info">
+            <h3>Workouts This Month</h3>
+            <p id="workouts-count">{{ stats.workouts_count }}</p>
+        </div>
+    </div>
+    
+    <div class="stat-card">
+        <i class='bx bx-flame'></i>
+        <div class="stat-info">
+            <h3>Calories Burned</h3>
+            <p id="total-calories">{{ "%.1f"|format(stats.total_calories) }}</p>
+        </div>
+    </div>
+    
+    <div class="stat-card">
+        <i class='bx bx-time'></i>
+        <div class="stat-info">
+            <h3>Total Minutes</h3>
+            <p id="total-duration">{{ stats.total_duration }}</p>
+        </div>
+    </div>
+</div>
+
+<div style="text-align: right; margin-bottom: 10px;">
+    <button id="refresh-stats-btn" class="btn outline">
+        <i class='bx bx-refresh'></i> Refresh Stats
+    </button>
+
+        <a href="/export-data" class="btn outline">
+            <i class='bx bx-export'></i>
+            Export Data
+        </a>
+</div>
+
+        <div class="dashboard-grid">
+            <div class="chart-card">
+                <h3>Workout History</h3>
+                <canvas id="workoutChart"></canvas>
+        </div>
+
+		<div class="workout-history-section">
+    		<div class="section-header">
+        		<h3>Workout Calendar</h3>
+        		<a href="/workout-history" class="btn outline">Full Calendar</a>
+    		</div>
+
+
+<div class="calendar-widget">
+    <div class="calendar-header">
+        <h4><span id="currentMonth">September</span> <span id="currentYear">2023</span></h4>
+        <div class="calendar-nav">
+            <button onclick="previousMonth()"><i class='bx bx-chevron-left'></i></button>
+            <button onclick="currentMonth()">Today</button>
+            <button onclick="nextMonth()"><i class='bx bx-chevron-right'></i></button>
+        </div>
+    </div>
+
+
+        <div class="weekday-labels">
+            <div class="weekday-label">S</div>
+            <div class="weekday-label">M</div>
+            <div class="weekday-label">T</div>
+            <div class="weekday-label">W</div>
+            <div class="weekday-label">T</div>
+            <div class="weekday-label">F</div>
+            <div class="weekday-label">S</div>
+        </div>
+
+       		<div class="calendar-grid" id="calendarDays">
+        	</div>
+    	</div>
+	</div>
+            
+            <div class="profile-overview">
+                <h3>Profile Overview</h3>
+                <div class="profile-stats">
+                    <div class="profile-stat">
+                        <span class="label">Age</span>
+                        <span class="value">{{ user.profile.age }}</span>
+                    </div>
+                    <div class="profile-stat">
+                        <span class="label">Height</span>
+                        <span class="value">{{ user.profile.height }} cm</span>
+                    </div>
+                    <div class="profile-stat">
+                        <span class="label">Weight</span>
+                        <span class="value">{{ user.profile.weight }} kg</span>
+                    </div>
+                    <div class="profile-stat">
+                        <span class="label">Level</span>
+                        <span class="value">{{ user.profile.fitness_level.title() }}</span>
+                    </div>
+                </div>
+                <div class="goals-section">
+                    <h4>Your Goals</h4>
+                    <p>{{ user.profile.goals }}</p>
+                </div>
+                <a href="/profile/edit" class="btn outline">Edit Profile</a>
+            </div>
+        </div>
+    </div>
+
+<script id="calendar-data" type="application/json">
+    {{ calendar_data|tojson|safe }}
+</script>
+
+    <script src="/static/dashboard.js"></script>
+
+<div class="bmi-overview">
+    <h3>BMI Calculator</h3>
+    <div class="bmi-calculator">
+        <div class="input-grid">
+            <div class="input-group">
+                <label for="height">Height (cm)</label>
+                <div class="input-with-icon">
+                    <i class='bx bx-ruler'></i>
+                    <input type="number" id="height" min="100" max="250" step="0.1" 
+                           value="{{ user.profile.height if user.profile else '170' }}">
+                </div>
+            </div>
+            <div class="input-group">
+                <label for="weight">Weight (kg)</label>
+                <div class="input-with-icon">
+                    <i class='bx bx-dumbbell'></i>
+                    <input type="number" id="weight" min="30" max="300" step="0.1" 
+                           value="{{ user.profile.weight if user.profile else '70' }}">
+                </div>
+            </div>
+        </div>
+        <button onclick="calculateBMI()" class="btn primary">Calculate BMI</button>
+        
+        <div class="bmi-result" id="bmiResult" style="display: none;">
+            <div class="result-number">
+                <span class="label">Your BMI</span>
+                <span class="value" id="bmiValue">0.0</span>
+            </div>
+            <div class="result-category">
+                <span class="label">Category</span>
+                <span class="category" id="bmiCategory">--</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="nutrition-overview">
+    <div class="section-header">
+        <h3>Nutrition Tracking</h3>
+        <button onclick="addMeal()" class="btn outline">
+            <i class='bx bx-plus'></i> Add Meal
+        </button>
+    </div>
+
+<div class="daily-calories">
+    <div class="progress-ring">
+        <svg width="120" height="120" viewBox="0 0 120 120">
+            <circle class="progress-ring-circle-bg" cx="60" cy="60" r="54" />
+            <circle class="progress-ring-circle" cx="60" cy="60" r="54" />
+        </svg>
+        <div class="progress-content">
+            <span id="currentCalories">0</span>
+            <small>/ <span id="calorieGoal">{{ user.profile.calorie_goal }}</span></small>
+            <div class="label">calories</div>
+        </div>
+    </div>
+</div>
+
+
+
+<div class="calorie-goal-settings">
+    <div class="setting-header">
+        <h4>Daily Calorie Goal</h4>
+        <button onclick="editCalorieGoal()" class="btn outline btn-small">
+            <i class='bx bx-edit'></i>
+        </button>
+    </div>
+    <div class="current-goal">
+        <span id="calorieGoal">{{ user.profile.calorie_goal }}</span> calories/day
+    </div>
+</div>
+   
+            <div class="macros-grid">
+                <div class="macro-item">
+                    <div class="macro-icon protein">
+                        <i class='bx bx-cricket-ball'></i>
+                    </div>
+                    <div class="macro-data">
+                        <span class="value" id="proteinTotal">0g</span>
+                        <span class="label">Protein</span>
+                    </div>
+                </div>
+                <div class="macro-item">
+                    <div class="macro-icon carbs">
+                        <i class='bx bx-grain'></i>
+                    </div>
+                    <div class="macro-data">
+                        <span class="value" id="carbsTotal">0g</span>
+                        <span class="label">Carbs</span>
+                    </div>
+                </div>
+                <div class="macro-item">
+                    <div class="macro-icon fats">
+                        <i class='bx bx-droplet'></i>
+                    </div>
+                    <div class="macro-data">
+                        <span class="value" id="fatsTotal">0g</span>
+                        <span class="label">Fats</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="meal-log">
+            <h4>Today's Meals</h4>
+            <div id="mealList" class="meal-list">
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal" id="addMealModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>Add Meal</h3>
+            <button onclick="closeModal('addMealModal')" class="modal-close">
+                <i class='bx bx-x'></i>
+            </button>
+        </div>
+        
+        <form id="mealForm" onsubmit="saveMeal(event)">
+            <div class="form-group">
+                <label for="mealType">Meal Type</label>
+                <select id="mealType" required>
+                    <option value="breakfast">Breakfast</option>
+                    <option value="lunch">Lunch</option>
+                    <option value="dinner">Dinner</option>
+                    <option value="snack">Snack</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="foodName">Food Name</label>
+                <input type="text" id="foodName" required placeholder="e.g., Chicken Salad">
+            </div>
+
+            <div class="form-group">
+                <label for="calories">Calories</label>
+                <input type="number" id="calories" required min="0" step="1">
+            </div>
+
+            <div class="macros-input">
+                <div class="form-group">
+                    <label for="proteins">Protein (g)</label>
+                    <input type="number" id="proteins" min="0" step="0.1">
+                </div>
+
+                <div class="form-group">
+                    <label for="carbs">Carbs (g)</label>
+                    <input type="number" id="carbs" min="0" step="0.1">
+                </div>
+
+                <div class="form-group">
+                    <label for="fats">Fats (g)</label>
+                    <input type="number" id="fats" min="0" step="0.1">
+                </div>
+            </div>
+
+            <button type="submit" class="btn primary">Save Meal</button>
+        </form>
+    </div>
+</div>
+
+
+<div class="modal" id="calorieGoalModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>Update Calorie Goal</h3>
+            <button onclick="closeModal('calorieGoalModal')" class="modal-close">
+                <i class='bx bx-x'></i>
+            </button>
+        </div>
+        
+        <form id="calorieGoalForm" onsubmit="updateCalorieGoal(event)">
+            <div class="form-group">
+                <label for="newCalorieGoal">Daily Calorie Goal</label>
+                <div class="input-with-icon">
+                    <i class='bx bx-flame'></i>
+                    <input type="number" 
+                           id="newCalorieGoal" 
+                           min="1200" 
+                           max="10000" 
+                           value="{{ user.profile.calorie_goal }}"
+                           required>
+                </div>
+                <small class="input-help">Recommended: 1200-4000 calories per day</small>
+            </div>
+            <button type="submit" class="btn primary">Save Goal</button>
+        </form>
+    </div>
+</div>
+</body>
+</html>

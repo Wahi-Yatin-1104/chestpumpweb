@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Export Data - Pump Chest</title>
+    <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
+    <link rel="stylesheet" href="/static/styles.css">
+    <link rel="stylesheet" href="/static/export.css">
+</head>
+<body>
+    <nav class="nav-container">
+        <a href="/" class="logo">Pump <span>Chest</span></a>
+        <div class="nav-btns">
+            <a href="/dashboard" class="btn outline">Dashboard</a>
+            <a href="/logout" class="btn outline">Logout</a>
+        </div>
+    </nav>
+
+    <div class="export-container">
+        <div class="export-card">
+            <h2>Export Your Fitness Data</h2>
+            <p>Download or share your workout history, form data, and heart rate metrics with trainers or healthcare providers.</p>
+            
+            <div class="date-range">
+                <h3>Select Date Range</h3>
+                <div class="date-inputs">
+                    <div class="date-input">
+                        <label for="from-date">From</label>
+                        <input type="date" id="from-date" name="from-date">
+                    </div>
+                    <div class="date-input">
+                        <label for="to-date">To</label>
+                        <input type="date" id="to-date" name="to-date">
+                    </div>
+                </div>
+            </div>
+            
+            <div class="export-options">
+                <h3>Export Format</h3>
+                <div class="format-options">
+                    <div class="format-option">
+                        <input type="radio" id="format-json" name="format" value="json" checked>
+                        <label for="format-json">
+                            <i class='bx bx-code-curly'></i>
+                            <span>JSON</span>
+                            <small>Raw data format</small>
+                        </label>
+                    </div>
+                    <div class="format-option">
+                        <input type="radio" id="format-csv" name="format" value="csv">
+                        <label for="format-csv">
+                            <i class='bx bx-spreadsheet'></i>
+                            <span>CSV</span>
+                            <small>Spreadsheet format</small>
+                        </label>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="export-actions">
+                <button id="export-button" class="btn primary">
+                    <i class='bx bx-download'></i>
+                    Export Data
+                </button>
+                <button id="generate-link-button" class="btn outline">
+                    <i class='bx bx-share-alt'></i>
+                    Generate Shareable Link
+                </button>
+            </div>
+        </div>
+        
+        <div id="share-link-container" class="share-link-container" style="display: none;">
+            <div class="share-link-card">
+                <h3>Shareable Link</h3>
+                <p>Share this link to provide read-only access to your fitness data:</p>
+                <div class="share-link-input">
+                    <input type="text" id="share-link" readonly>
+                    <button id="copy-link" class="btn outline">
+                        <i class='bx bx-copy'></i>
+                    </button>
+                </div>
+                <div class="share-link-expiry">
+                    <span>This link will expire in 7 days</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/export.js"></script>
+</body>
+</html>
