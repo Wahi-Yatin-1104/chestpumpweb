@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 import os
 from dotenv import load_dotenv
 import secrets
-from models import db, User, PasswordReset, BMIHistory
+from models import db, User, PasswordReset,BMIHistory, OneRepMax
 import cv2  
 import mediapipe as mp  
 import numpy as np
@@ -471,9 +471,6 @@ def register():
 
     return render_template('register.html')
 
-<<<<<<< Updated upstream
-
-
 @app.route('/contact', methods=['GET', 'POST'])
 def contact():
     if request.method == 'POST':
@@ -582,7 +579,44 @@ def get_bmi_history():
             'success': False,
             'message': 'Failed to fetch BMI history'
         }), 500
->>>>>>> Stashed changes
+    
+@app.route('/api/save_one_rep_max', methods=['POST'])
+@login_required
+def save_one_rep_max():
+    try:
+        data = request.get_json()
+        required_fields = ['exercise', 'weight', 'reps', 'estimated_one_rep_max']
+        for field in required_fields:
+            if field not in data:
+                return jsonify({
+                    'success': False,
+                    'message': f'Missing required field: {field}'
+                }), 400
+        
+        orm = OneRepMax(
+            user_id=current_user.id,
+            exercise=data['exercise'],
+            weight=float(data['weight']),
+            reps=int(data['reps']),
+            estimated_one_rep_max=float(data['estimated_one_rep_max'])
+        )
+        
+        db.session.add(orm)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'One rep max saved successfully',
+            'data': orm.to_dict()
+        })
+        
+    except Exception as e:
+        print(f"Error saving one rep max: {str(e)}")
+        db.session.rollback()
+        return jsonify({
+            'success': False,
+            'message': f'Failed to save one rep max: {str(e)}'
+        }), 500
 
 @app.route('/logout')
 @login_required

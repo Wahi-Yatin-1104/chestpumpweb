@@ -31,3 +31,23 @@ class PasswordReset(db.Model):
         self.user_id = user_id
         self.token = token
         self.expires_at = datetime.utcnow() + timedelta(hours=24)
+        
+class OneRepMax(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    exercise = db.Column(db.String(20), nullable=False)
+    weight = db.Column(db.Float, nullable=False)
+    reps = db.Column(db.Integer, nullable=False)
+    estimated_one_rep_max = db.Column(db.Float, nullable=False)
+    date = db.Column(db.DateTime, default=datetime.utcnow)
+    user = db.relationship('User', backref=db.backref('one_rep_maxes', lazy=True))
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'exercise': self.exercise,
+            'weight': self.weight,
+            'reps': self.reps,
+            'estimated_one_rep_max': self.estimated_one_rep_max,
+            'date': self.date.strftime('%Y-%m-%d %H:%M:%S')
+        }
