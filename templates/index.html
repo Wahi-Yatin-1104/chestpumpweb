@@ -1,236 +1,211 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-	<meta charset="UTF-8">
-	<meta name="viewport" content="width=device-width, initial-scale=1.0">
-	<link rel="stylesheet" href="https://unpkg.com/aos@next/dist/aos.css" />
-	<link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
 	<link rel="stylesheet" href="/static/styles.css">
-	<title>Pump-Chest</title>
+	<link rel="stylesheet" href="/static/animations.css">
+	<link rel="stylesheet" href="/static/effects.css">
+    <title>Pump-Chest</title>
 </head>
 <body>
+    <nav class="nav-container">
+        <a href="/" class="logo">Pump <span>Chest</span></a>
+        <ul class="navbar">
+            <li><a href="#home">Home</a></li>
+            <li><a href="#features">Features</a></li>
+            <li><a href="#workout">Workout</a></li>
+            <li><a href="#pricing">Pricing</a></li>
+            <li><a href="#about">About</a></li>
+        </ul>
+        <div class="nav-btns">
+            <a href="/get-started" class="btn primary">Get Started</a>
+        </div>
+    </nav>
 
 
-	<header>
+    <main>
+        <section class="hero" id="home">
+            <div class="hero-content">
+                <div class="hero-camera-icon animate-fade-up">
+                    <svg width="60" height="60" viewBox="0 0 100 100">
+                        <style>
+                            .camera-body { fill: #45ffca; }
+                            .lens { fill: none; stroke: #45ffca; stroke-width: 2; }
+                            .scan-line { stroke: #45ffca; stroke-width: 2; }
+                            @keyframes scan {
+                                0% { transform: translateY(0); }
+                                100% { transform: translateY(40px); }
+                            }
+                            .scan-line {
+                                animation: scan 2s linear infinite;
+                            }
+                        </style>
+                        <rect class="camera-body" x="20" y="30" width="60" height="40" rx="5"/>
+                        <circle class="lens" cx="50" cy="50" r="15"/>
+                        <line class="scan-line" x1="30" y1="35" x2="70" y2="35"/>
+                    </svg>
+                </div>
+                <h1 class="animate-fade-up">AI-Powered<br>Form Detection<br>& Heart Rate Tracking</h1>
+                <p class="animate-fade-up delay-1">Perfect your form. Track your progress. Achieve your goals.</p>
+                <div class="features-list animate-fade-up delay-2">
+                    <div class="feature">
+                        <i class='bx bx-camera'></i>
+                        <span>Real-time Form Analysis</span>
+                    </div>
+                    <div class="feature">
+                        <i class='bx bx-heart'></i>
+                        <span>Heart Rate Monitoring</span>
+                    </div>
+                    <div class="feature">
+                        <i class='bx bx-line-chart'></i>
+                        <span>Progress Tracking</span>
+                    </div>
+                </div>
+                <div class="cta-buttons animate-fade-up delay-3">
+                    <a href="/get-started" class="btn primary">Get Started</a>
+                    <a href="#features" class="btn outline">Learn More</a>
+                </div>
+            </div>
+            <div class="hero-visual animate-fade-in">
+                <div class="demo-screen">
+                    <div class="demo-overlay"></div>
+                </div>
+            </div>
+        </section>
 
-		<a href="#home" class="logo">Pump <span>Chest</span></a>
 
-		<div class='bx bx-menu' id="menu-icon"></div>
+        <section class="features" id="features">
+            <h2 class="section-title animate-fade-up">Advanced Features</h2>
+            <div class="features-grid">
+                <div class="feature-card animate-fade-up delay-1">
+                    <i class='bx bx-camera-movie'></i>
+                    <h3>Form Detection</h3>
+                    <p>Real-time AI analysis for perfect form</p>
+                    <div class="feature-hover"></div>
+                </div>
+                <div class="feature-card animate-fade-up delay-2">
+                    <i class='bx bx-heart'></i>
+                    <h3>Heart Rate</h3>
+                    <p>Bluetooth sensor integration</p>
+                    <div class="feature-hover"></div>
+                </div>
+                <div class="feature-card animate-fade-up delay-3">
+                    <i class='bx bx-dumbbell'></i>
+                    <h3>Exercise Library</h3>
+                    <p>Multiple workout types supported</p>
+                    <div class="feature-hover"></div>
+                </div>
+                <div class="feature-card animate-fade-up delay-4">
+                    <i class='bx bx-line-chart'></i>
+                    <h3>Progress Tracking</h3>
+                    <p>Detailed performance analytics</p>
+                    <div class="feature-hover"></div>
+                </div>
+            </div>
+        </section>
 
-		<ul class="navbar">
-			<li><a href="#home">Home</a></li>
-			<li><a href="#workout">Workout</a></li>
-			<li><a href="#services">Services</a></li>
-			<li><a href="#about">About</a></li>
-			<li><a href="#plans">Pricing</a></li>
-			<li><a href="#review">Review</a></li>
-		</ul>
 
-		<div class="top-btn">
-			<!--<a href="/heartrate" class="nav-btn">Join Us</a>-->
-			<a href="/login" class="nav-btn">Join Us</a>
-			<a href="/workout" class="nav-btn1">Sign In</a>
-		</div>
+        <section class="tracking" id="workout"> 
+            <div class="tracking-background"></div>
+            <h2 class="section-title animate-fade-up">Smart Workout Tracking</h2>
+            <div class="tracking-content">
+                <div class="tracking-features animate-fade-up delay-1">
+                    <div class="tracking-feature">
+                        <i class='bx bx-check-circle'></i>
+                        <span>Real-time form correction</span>
+                    </div>
+                    <div class="tracking-feature">
+                        <i class='bx bx-check-circle'></i>
+                        <span>Automatic rep counting</span>
+                    </div>
+                    <div class="tracking-feature">
+                        <i class='bx bx-check-circle'></i>
+                        <span>Heart rate zones</span>
+                    </div>
+                    <div class="tracking-feature">
+                        <i class='bx bx-check-circle'></i>
+                        <span>Performance analytics</span>
+                    </div>
+                </div>
+                <a href="/get-started" class="btn primary animate-fade-up delay-2">Start Training</a>
+            </div>
+        </section>
 
-	</header>
 
-	<section class="home" id="home">
-		<div class="home-content" data-aos="zoom-in">
-
-			<h3>Build Your</h3>
-			<h3>Dream Physique</h3>
-			<h1>With Correct Form</h1>
-			<h1>And Posture</h1>
-			<h3><span class="multiple-text"></span></h3>
-
-			<p>Pump Chest Team</p>
-
-			<a href="#" class="btn">Join Us</a>
-
-		</div>
-			
-		<div class="home-img" data-aos="zoom-in">
-				<img src="/static/images/Screenshot 2025-01-23 at 10.38.22 AM.png" alt="Home Image">
-		</div>
-
-	</section>
-
-	<section class="services" id="services">
-		<h2 class="heading" data-aos="zoom-in-down">Our Form Detection Services Can Help You <Span>With</Span></h2>
-
-		<div class="services-content" data-aos="zoom-in-up">
-			<div class="row">
-				<img src="/static//images/pf.jpg" alt="">
-
-				<h4>Physical Fitness</h4>
-			</div>
-
-			<div class="row">
-				<img src="/static//images/wg11.jpeg" alt="">
-
-				<h4>Weight Gain</h4>
-			</div>
-
-			<div class="row">
-				<img src="/static/images/st.jpeg" alt="">
-
-				<h4>Strength Training</h4>
-			</div>
-
-			<div class="row">
-				<img src="/static/images/fl1.jpeg" alt="">
-
-				<h4>Fat Loss</h4>
-			</div>
-
-			<div class="row">
-				<img src="/static/images/wl.jpg" alt="">
-
-				<h4>Weight Lifting</h4>
-			</div>
-		</div>	
-
+<section class="pricing" id="pricing">
+    <h2 class="section-title animate-fade-up">Pricing Plans</h2>
+    <div class="pricing-grid">
+        <div class="price-card animate-fade-up delay-1">
+            <div class="price-header">
+                <h3>Basic</h3>
+                <div class="price">$5<span>/month</span></div>
+            </div>
+            <ul>
+                <li><i class='bx bx-check'></i> Form Detection</li>
+                <li><i class='bx bx-check'></i> Basic Analytics</li>
+                <li><i class='bx bx-check'></i> Exercise Library</li>
+                <li><i class='bx bx-x'></i> Heart Rate Monitoring</li>
+                <li><i class='bx bx-x'></i> Custom Workout Plans</li>
+            </ul>
+            <a href="{{ url_for('register', plan='basic') }}" class="btn outline">Get Started</a>
+        </div>
+        
+        <div class="price-card featured animate-fade-up delay-2">
+            <div class="popular-tag">Most Popular</div>
+            <div class="price-header">
+                <h3>Premium</h3>
+                <div class="price">$15<span>/month</span></div>
+            </div>
+            <ul>
+                <li><i class='bx bx-check'></i> Advanced Form Analysis</li>
+                <li><i class='bx bx-check'></i> Heart Rate Monitoring</li>
+                <li><i class='bx bx-check'></i> Detailed Analytics</li>
+                <li><i class='bx bx-check'></i> Custom Workout Plans</li>
+                <li><i class='bx bx-check'></i> Priority Support</li>
+            </ul>
+            <a href="{{ url_for('register', plan='premium') }}" class="btn primary">Get Started</a>
+        </div>
+    </div>
 </section>
-
-	<section class="about" id="about">
-		<div class="about-img" data-aos="zoom-in-down">
-			<img src="/static/images/wl.jpg" alt="">
-		</div>
-
-		<div class="about-content" data-aos="zoom-in-up">
-			<h2 class="heading">Why Choose Our Service?</h2>
-
-			<p>Perfect your form with real-time feedback.</p>
-			<p>Unlock your potential with intelligent workout guidance.</p>
-			<p>Train smarter with precise form corrections.</p>
-			<p>Supportive tools for a safe and effective fitness journey.</p>
-
-			<a href="#" class="btn">7 Day Free Trial</a>
-		</div>
-	</section>
-
-	<section class="plans" id="plans">
-		<h2 class="heading" data-aos="zoom-in-down">Our <span>Plans</span></h2>
-
-		<div class="plans-content" data-aos="zoom-in-up">
-
-			<div class="box">
-				<h3>BASIC</h3>
-				<h2><span>$5/Month</span></h2>
-				<ul>
-					<li>Smart Workout Plan</li>
-					<li>At Home Workout</li>
-				</ul>
-				<a href="#">
-					Join Now
-					<i class='bx bx-right-arrow-alt' ></i>
-				</a>
-			</div>
-
-			<div class="box">
-				<h3>PRO</h3>
-				<h2><span>$10/Month</span></h2>
-				<ul>
-					<li>Pro Gains</li>
-					<li>Smart Workout Plan</li>
-					<li>At Home Workout</li>
-				</ul>
-				<a href="#">
-					Join Now
-					<i class='bx bx-right-arrow-alt' ></i>
-				</a>
-			</div>
-
-			<div class="box">
-				<h3>PREMIUM</h3>
-				<h2><span>$15/Month</span></h2>
-				<ul>
-					<li>Premium Performance</li>
-					<li>Premium Gains</li>
-					<li>Premium Training Result</li>
-					<li>Smart Workout Plan</li>
-					<li>At Home Workout</li>
-				</ul>
-				<a href="#">
-					Join Now
-					<i class='bx bx-right-arrow-alt' ></i>
-				</a>
-			</div>
-		</div>
-	</section>
+    </main>
 
 
-	<section class="review" id="review">
-		<div class="review-box">
-			<h2 class="heading" data-aos="zoom-in-down">Client <span>Reviews</span></h2>
-
-			<div class="wrapper" data-aos="zoom-in-up">
-				<div class="review-item">
-					<img src="/static/images/dan.jpeg" alt="">
-					<h2>Dan</h2>
-					<div class="rating">
-						<i class='bx bxs-star' id="Star"></i>
-						<i class='bx bxs-star' id="Star"></i>
-						<i class='bx bxs-star' id="Star"></i>
-						<i class='bx bxs-star' id="Star"></i>
-						<i class='bx bxs-star' id="Star"></i>
-					</div>
-
-					<p>Good workout tracking</p>
-				</div>
-
-				<div class="review-item">
-					<img src="/static/images/max.jpeg" alt="">
-					<h2>Max</h2>
-					<div class="rating">
-						<i class='bx bxs-star' id="Star"></i>
-						<i class='bx bxs-star' id="Star"></i>
-						<i class='bx bxs-star' id="Star"></i>
-						<i class='bx bxs-star' id="Star"></i>
-						<i class='bx bxs-star' id="Star"></i>
-					</div>
-
-					<p>Loved the workout tracking</p>
-				</div>
-
-				<div class="review-item">
-					<img src="/static/images/tim11.jpeg" alt="">
-					<h2>Tim</h2>
-					<div class="rating">
-						<i class='bx bxs-star' id="Star"></i>
-						<i class='bx bxs-star' id="Star"></i>
-						<i class='bx bxs-star' id="Star"></i>
-						<i class='bx bxs-star' id="Star"></i>
-					</div>
-
-					<p>Good overall performance and schedule</p>
-				</div>
-			</div>
-		</div>
-	</section>
+    <footer class="footer" id="about"> 	
+        <div class="footer-content">
+            <div class="footer-brand">
+                <h3>Pump Chest</h3>
+                <p>AI-powered workout form detection</p>
+            </div>
+            <div class="footer-links">
+                <div class="product">
+                    <h4>Product</h4>
+                    <a href="#features">Features</a>
+                    <a href="#pricing">Pricing</a>
+                    <a href="{{ url_for('about') }}">About</a>
+                </div>
+                <div class="support">
+                    <h4>Support</h4>
+                    <a href="{{ url_for('help_center') }}">Help Center</a>
+                    <a href="{{ url_for('contact') }}">Contact</a>
+                    <a href="{{ url_for('privacy_policy') }}">Privacy Policy</a>
+                </div>
+            </div>
+            <div class="social-links">
+                <a href="#" class="social-icon"><i class='bx bxl-facebook'></i></a>
+                <a href="#" class="social-icon"><i class='bx bxl-twitter'></i></a>
+                <a href="#" class="social-icon"><i class='bx bxl-instagram'></i></a>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <p>&copy; 2025 Pump Chest - All rights reserved</p>
+        </div>
+    </footer>
 
 
-	<footer class="footer">
-		<div class="social">
-			<a href="#"><i class='bx bxl-facebook' ></i></a>
-			<a href="#"><i class='bx bxl-instagram' ></i></a>
-			<a href="#"><i class='bx bxl-linkedin' ></i></a>
-		</div>
+    <script src="/static/script.js"></script>
 
-		<p class="copyright">
-			&copy; Pump Chest 2025 - All Rights Reserved
-		</p>
-	</footer>
-
-	<script src="https://unpkg.com/aos@next/dist/aos.js"></script>
- 	<script>
-		AOS.init({
-			offset: 300,
-			duration: 1400,
-		});
-	</script>
-	<script src="https://unpkg.com/typed.js@2.1.0/dist/typed.umd.js"></script>
-	<script src="script.js"></script>
 
 </body>
 </html>
