@@ -1,0 +1,264 @@
+.dashboard-container {
+    padding: 8rem 5% 2rem;
+    min-height: 100vh;
+    background: var(--bg);
+}
+
+.dashboard-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+}
+
+.dashboard-header h1 {
+    font-size: 2.5rem;
+    color: var(--text);
+}
+
+.streak-counter {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: linear-gradient(45deg, #ff4d4d, #ff8533);
+    padding: 0.75rem 1.5rem;
+    border-radius: 9999px;
+    font-weight: 600;
+}
+
+.streak-counter i {
+    font-size: 1.5rem;
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.stat-card {
+    background: var(--card);
+    border-radius: 15px;
+    padding: 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    border: 1px solid #222;
+}
+
+.stat-card i {
+    font-size: 2rem;
+    color: var(--primary);
+}
+
+.stat-info h3 {
+    font-size: 0.9rem;
+    color: #666;
+    margin-bottom: 0.25rem;
+}
+
+.stat-info p {
+    font-size: 1.5rem;
+    color: var(--text);
+    font-weight: 600;
+}
+
+.dashboard-grid {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 1.5rem;
+}
+
+.chart-card {
+    background: var(--card);
+    border-radius: 15px;
+    padding: 1.5rem;
+    border: 1px solid #222;
+    height: 400px;
+}
+
+.chart-card h3 {
+    color: var(--text);
+    margin-bottom: 1rem;
+}
+
+.profile-overview {
+    background: var(--card);
+    border-radius: 15px;
+    padding: 1.5rem;
+    border: 1px solid #222;
+}
+
+.profile-overview h3 {
+    color: var(--text);
+    margin-bottom: 1.5rem;
+}
+
+.profile-stats {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.profile-stat {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.profile-stat .label {
+    color: #666;
+    font-size: 0.9rem;
+}
+
+.profile-stat .value {
+    color: var(--text);
+    font-size: 1.2rem;
+    font-weight: 600;
+}
+
+.goals-section {
+    margin-bottom: 1.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid #222;
+}
+
+.goals-section h4 {
+    color: var(--text);
+    margin-bottom: 0.5rem;
+}
+
+.goals-section p {
+    color: #666;
+    line-height: 1.5;
+}
+
+@media (max-width: 1024px) {
+    .dashboard-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.workout-history-section {
+    margin-top: 2rem;
+    background: var(--card);
+    border-radius: 15px;
+    padding: 1.5rem;
+    border: 1px solid #222;
+}
+
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+}
+
+.section-header h3 {
+    color: var(--text);
+    font-size: 1.5rem;
+}
+
+.calendar-widget {
+    background: rgba(17, 17, 17, 0.7);
+    border-radius: 10px;
+    padding: 1.5rem;
+}
+
+.calendar-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+}
+
+.calendar-header h4 {
+    color: var(--text);
+    font-size: 1.2rem;
+}
+
+.calendar-nav {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.calendar-nav button {
+    background: none;
+    border: none;
+    color: var(--primary);
+    cursor: pointer;
+    font-size: 1.2rem;
+    padding: 0.25rem;
+    transition: transform 0.3s ease;
+}
+
+.calendar-nav button:hover {
+    transform: scale(1.1);
+}
+
+.weekday-labels {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+    text-align: center;
+}
+
+.weekday-label {
+    color: #666;
+    font-size: 0.8rem;
+}
+
+.calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 0.5rem;
+}
+
+.calendar-day {
+    aspect-ratio: 1;
+    background: rgba(17, 17, 17, 0.7);
+    border-radius: 8px;
+    padding: 0.25rem;
+    font-size: 0.9rem;
+    color: var(--text);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.calendar-day:hover {
+    transform: translateY(-2px);
+    background: rgba(69, 255, 202, 0.1);
+}
+
+.calendar-day.has-workout {
+    border: 1px solid var(--primary);
+}
+
+.day-number {
+    margin-bottom: 0.25rem;
+}
+
+.day-info {
+    font-size: 0.7rem;
+    color: var(--primary);
+}
+
+@media (max-width: 768px) {
+    .calendar-widget {
+        padding: 1rem;
+    }
+
+    .calendar-grid {
+        gap: 0.25rem;
+    }
+
+    .calendar-day {
+        font-size: 0.8rem;
+    }
+}
