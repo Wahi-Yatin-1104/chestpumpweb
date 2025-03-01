@@ -416,6 +416,66 @@ def reset_password(token):
         })
     return render_template('reset-password.html')
 
+@app.route('/dashboard')
+@login_required
+def dashboard():
+    if not current_user.profile:
+        return redirect(url_for('profile_setup'))
+    
+    try:
+        thirty_days_ago = datetime.utcnow() - timedelta(days=30)
+        sessions = WorkoutSession.query.filter(
+            WorkoutSession.user_id == current_user.id,
+            WorkoutSession.date >= thirty_days_ago,
+            WorkoutSession.is_completed == True
+        ).order_by(WorkoutSession.date.desc()).all()
+        
+        current_month_start = datetime.utcnow().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        monthly_sessions = [s for s in sessions if s.date >= current_month_start]
+        
+        print(f"Found {len(monthly_sessions)} workouts for current month")
+        for session in monthly_sessions:
+            print(f"Workout: {session.date}, Calories: {session.calories_burned}, Duration: {session.duration}s")
+        
+        total_calories = 0
+        total_duration = 0
+        
+        for session in monthly_sessions:
+            if session.calories_burned is not None:
+                total_calories += float(session.calories_burned)
+            if session.duration is not None:
+                total_duration += int(session.duration)
+        
+        total_duration_minutes = total_duration // 60
+        
+        stats = {
+            'total_calories': round(total_calories, 1),
+            'total_duration': total_duration_minutes,
+            'workouts_count': len(monthly_sessions),
+            'streak': current_user.streak_count or 0
+        }
+        
+        print(f"Dashboard stats: {stats}")
+        
+        workout_data = {
+            'dates': [s.date.strftime('%Y-%m-%d') for s in sessions],
+            'calories': [round(float(s.calories_burned or 0), 1) for s in sessions],
+            'durations': [round(float(s.duration or 0) / 60, 1) if s.duration else 0 for s in sessions]
+        }
+        
+        calendar_data = {s.date.strftime('%Y-%m-%d'): s.to_calendar_dict() for s in sessions}
+        
+        return render_template('dashboard.html', 
+                             user=current_user, 
+                             stats=stats,
+                             workout_data=workout_data,
+                             calendar_data=calendar_data)
+                             
+    except Exception as e:
+        print(f"Dashboard error: {e}")
+        flash('Error loading dashboard data')
+        return redirect(url_for('home'))
+
 @app.route('/workout')
 def workout():
     return render_template('workout.html')
