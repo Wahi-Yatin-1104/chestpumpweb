@@ -256,3 +256,255 @@ function fetchDashboardStats() {
 document.getElementById('refresh-stats-btn').addEventListener('click', function() {
     fetchDashboardStats();
 });
+
+function calculateBMI() {
+    const height = parseFloat(document.getElementById('height').value);
+    const weight = parseFloat(document.getElementById('weight').value);
+    
+    if (!height || !weight || height <= 0 || weight <= 0) {
+        alert('Please enter valid height and weight values');
+        return;
+    }
+    const heightInMeters = height / 100;
+    const bmi = weight / (heightInMeters * heightInMeters);
+    displayBMIResults(bmi);
+    saveBMIData(height, weight, bmi);
+}
+
+function displayBMIResults(bmi) {
+    const resultDiv = document.getElementById('bmiResult');
+    const bmiValue = document.getElementById('bmiValue');
+    const bmiCategory = document.getElementById('bmiCategory');
+    bmiValue.textContent = bmi.toFixed(1);
+    let category;
+    bmiCategory.classList.remove('underweight', 'normal', 'overweight', 'obese');
+    
+    if (bmi < 18.5) {
+        category = 'Underweight';
+        bmiCategory.classList.add('underweight');
+    } else if (bmi < 25) {
+        category = 'Normal';
+        bmiCategory.classList.add('normal');
+    } else if (bmi < 30) {
+        category = 'Overweight';
+        bmiCategory.classList.add('overweight');
+    } else {
+        category = 'Obese';
+        bmiCategory.classList.add('obese');
+    }
+    
+    bmiCategory.textContent = category;
+    resultDiv.style.display = 'block';
+}
+
+async function saveBMIData(height, weight, bmi) {
+    try {
+        const response = await fetch('/api/save-bmi', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                height: height,
+                weight: weight,
+                bmi: bmi
+            })
+        });        
+        const data = await response.json();
+        if (!data.success) {
+            console.error('Failed to save BMI data');
+        }
+    } catch (error) {
+        console.error('Error saving BMI data:', error);
+    }
+}
+
+function updateNutritionUI() {
+    const calorieGoalElement = document.getElementById('calorieGoal');
+    const calorieGoal = calorieGoalElement ? 
+        parseInt(calorieGoalElement.textContent) || 2000 : 2000;
+
+    const percentage = Math.min(Math.max((dailyNutrition.calories / calorieGoal) * 100, 0), 100);
+    const progressRing = document.querySelector('.progress-ring-circle');
+    if (progressRing) {
+        const radius = 90;
+        const circumference = 2 * Math.PI * radius;
+        const offset = circumference - (percentage / 100) * circumference;
+        progressRing.style.strokeDasharray = `${circumference} ${circumference}`;
+        progressRing.style.strokeDashoffset = offset;
+    }
+
+    const caloriesElement = document.getElementById('currentCalories');
+    if (caloriesElement) {
+        caloriesElement.textContent = Math.round(dailyNutrition.calories);
+    }
+
+    const proteinElement = document.getElementById('proteinTotal');
+    const carbsElement = document.getElementById('carbsTotal');
+    const fatsElement = document.getElementById('fatsElement');   
+    if (proteinElement) proteinElement.textContent = `${Math.round(dailyNutrition.proteins)}g`;
+    if (carbsElement) carbsElement.textContent = `${Math.round(dailyNutrition.carbs)}g`;
+    if (fatsElement) fatsElement.textContent = `${Math.round(dailyNutrition.fats)}g`;
+}
+
+function updateMealList(meals) {
+    const mealList = document.getElementById('mealList');
+    if (!mealList) {
+        console.error('Meal list element not found during update');
+        return;
+    }
+    
+    console.log(`Updating meal list with ${meals.length} meals`);
+    
+    if (meals.length === 0) {
+        mealList.innerHTML = '<div class="empty-meals">No meals logged today</div>';
+        return;
+    }  
+    mealList.innerHTML = meals.map(meal => `
+        <div class="meal-item">
+            <div class="meal-type ${meal.meal_type}">
+                ${meal.meal_type}
+            </div>
+            <div class="meal-info">
+                <div class="meal-name">${meal.food_name}</div>
+                <div class="meal-macros">
+                    ${meal.proteins ? `P: ${meal.proteins}g` : ''}
+                    ${meal.carbs ? `C: ${meal.carbs}g` : ''}
+                    ${meal.fats ? `F: ${meal.fats}g` : ''}
+                </div>
+            </div>
+            <div class="meal-calories">
+                ${Math.round(parseFloat(meal.calories) || 0)} cal
+            </div>
+        </div>
+    `).join('');
+}
+
+function addMeal() {
+    document.getElementById('addMealModal').style.display = 'block';
+}
+
+function closeModal(modalId) {
+    document.getElementById(modalId).style.display = 'none';
+}
+
+async function saveMeal(event) {
+    event.preventDefault();
+    const mealData = {
+        meal_type: document.getElementById('mealType').value,
+        food_name: document.getElementById('foodName').value,
+        calories: parseFloat(document.getElementById('calories').value) || 0,
+        proteins: parseFloat(document.getElementById('proteins').value) || 0,
+        carbs: parseFloat(document.getElementById('carbs').value) || 0,
+        fats: parseFloat(document.getElementById('fats').value) || 0
+    };
+
+    console.log('Saving meal:', mealData);
+
+    try {
+        const response = await fetch('/api/meals/add', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(mealData)
+        });
+
+        const data = await response.json();
+        console.log('Meal save response:', data);
+
+        if (data.success) {
+            document.getElementById('mealForm').reset();
+            closeModal('addMealModal');
+            setTimeout(async () => {
+                try {
+                    const mealResponse = await fetch('/api/meals/today');
+                    const mealData = await mealResponse.json();
+                    
+                    console.log('Refreshed meal data:', mealData);
+                    
+                    if (mealData.success && Array.isArray(mealData.meals)) {
+                        const mealList = document.getElementById('mealList');
+                        if (!mealList) return;
+                        
+                        if (mealData.meals.length === 0) {
+                            mealList.innerHTML = '<div class="empty-meals">No meals logged today</div>';
+                        } else {
+                            mealList.innerHTML = mealData.meals.map(meal => `
+                                <div class="meal-item">
+                                    <div class="meal-type ${meal.meal_type}">
+                                        ${meal.meal_type}
+                                    </div>
+                                    <div class="meal-info">
+                                        <div class="meal-name">${meal.food_name}</div>
+                                        <div class="meal-macros">
+                                            ${meal.proteins ? `P: ${meal.proteins}g` : ''}
+                                            ${meal.carbs ? `C: ${meal.carbs}g` : ''}
+                                            ${meal.fats ? `F: ${meal.fats}g` : ''}
+                                        </div>
+                                    </div>
+                                    <div class="meal-calories">
+                                        ${Math.round(parseFloat(meal.calories) || 0)} cal
+                                    </div>
+                                </div>
+                            `).join('');
+                        }
+
+                        const totals = {
+                            calories: 0,
+                            proteins: 0,
+                            carbs: 0,
+                            fats: 0
+                        };
+                        
+                        mealData.meals.forEach(meal => {
+                            totals.calories += parseFloat(meal.calories) || 0;
+                            totals.proteins += parseFloat(meal.proteins) || 0;
+                            totals.carbs += parseFloat(meal.carbs) || 0;
+                            totals.fats += parseFloat(meal.fats) || 0;
+                        });
+                        const caloriesElement = document.getElementById('currentCalories');
+                        if (caloriesElement) {
+                            caloriesElement.textContent = Math.round(totals.calories);
+                        }
+                        
+                        const proteinElement = document.getElementById('proteinTotal');
+                        if (proteinElement) {
+                            proteinElement.textContent = `${Math.round(totals.proteins)}g`;
+                        }
+                        
+                        const carbsElement = document.getElementById('carbsTotal');
+                        if (carbsElement) {
+                            carbsElement.textContent = `${Math.round(totals.carbs)}g`;
+                        }
+                        
+                        const fatsElement = document.getElementById('fatsTotal');
+                        if (fatsElement) {
+                            fatsElement.textContent = `${Math.round(totals.fats)}g`;
+                        }
+                        const progressRing = document.querySelector('.progress-ring-circle');
+                        if (progressRing) {
+                            const calorieGoalElement = document.getElementById('calorieGoal');
+                            const calorieGoal = calorieGoalElement ? 
+                                parseInt(calorieGoalElement.textContent) || 2000 : 2000;
+                            
+                            const percentage = Math.min((totals.calories / calorieGoal) * 100, 100);
+                            const circumference = 2 * Math.PI * 54;
+                            const offset = circumference - (percentage / 100) * circumference;
+                            
+                            progressRing.style.strokeDasharray = `${circumference} ${circumference}`;
+                            progressRing.style.strokeDashoffset = offset;
+                        }
+                    }
+                } catch (error) {
+                    console.error('Error refreshing meal display:', error);
+                }
+            }, 500);
+        } else {
+            alert(`Failed to save meal: ${data.message || 'Unknown error'}`);
+        }
+    } catch (error) {
+        console.error('Error saving meal:', error);
+        alert(`Error saving meal: ${error.message}`);
+    }
+}

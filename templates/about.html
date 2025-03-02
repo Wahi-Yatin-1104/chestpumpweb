@@ -8,13 +8,18 @@
     <link rel="stylesheet" href="/static/styles.css">
 </head>
 <body>
-    <nav class="nav-container">
-        <a href="/" class="logo">Pump <span>Chest</span></a>
-        <div class="nav-btns">
-            <a href="/dashboard" class="btn outline">Dashboard</a>
-            <a href="/logout" class="btn outline">Logout</a>
-        </div>
-    </nav>
+	<nav class="nav-container">
+	    <a href="/" class="logo">Pump <span>Chest</span></a>
+	    <div class="nav-btns">
+	        {% if current_user.is_authenticated %}
+	            <a href="/dashboard" class="btn outline">Dashboard</a>
+	            <a href="/logout" class="btn outline">Logout</a>
+	        {% else %}
+	            <a href="/login" class="btn outline">Login</a>
+	            <a href="/register" class="btn primary">Sign Up</a>
+	        {% endif %}
+	    </div>
+	</nav>
 
     <section class="about-section" style="padding: 8rem 5% 4rem; min-height: 100vh; background: var(--bg);">
         <div class="container">

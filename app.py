@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 import os
 from dotenv import load_dotenv
 import secrets
-from models import db, User, PasswordReset,BMIHistory, OneRepMax
+from models import db, User, PasswordReset,BMIHistory, OneRepMax, MealLog
 import cv2  
 import mediapipe as mp  
 import numpy as np
@@ -676,6 +676,69 @@ def save_one_rep_max():
         return jsonify({
             'success': False,
             'message': f'Failed to save one rep max: {str(e)}'
+        }), 500
+
+@app.route('/api/meals/today')
+@login_required
+def get_todays_meals():
+    try:
+        today = datetime.now().date()
+        meals = MealLog.query.filter(
+            MealLog.user_id == current_user.id,
+            func.date(MealLog.date) == today
+        ).order_by(MealLog.date.desc()).all()
+        
+        calorie_goal = 2000
+        if current_user.profile and hasattr(current_user.profile, 'calorie_goal'):
+            calorie_goal = current_user.profile.calorie_goal
+        
+        return jsonify({
+            'success': True,
+            'meals': [meal.to_dict() for meal in meals],
+            'calorie_goal': calorie_goal
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': 'Failed to fetch meals'
+        }), 500
+
+@app.route('/api/meals/add', methods=['POST'])
+@login_required
+def add_meal():
+    try:
+        data = request.get_json()
+        required_fields = ['meal_type', 'food_name', 'calories']
+        for field in required_fields:
+            if field not in data:
+                return jsonify({
+                    'success': False,
+                    'message': f'Missing required field: {field}'
+                }), 400
+
+        meal = MealLog(
+            user_id=current_user.id,
+            meal_type=str(data['meal_type']),
+            food_name=str(data['food_name']),
+            calories=float(data['calories']),
+            proteins=float(data.get('proteins', 0) or 0),
+            carbs=float(data.get('carbs', 0) or 0),
+            fats=float(data.get('fats', 0) or 0)
+        )
+        
+        db.session.add(meal)
+        db.session.commit()    
+        return jsonify({
+            'success': True,
+            'message': 'Meal added successfully',
+            'meal': meal.to_dict()
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            'success': False,
+            'message': f'Failed to add meal: {str(e)}'
         }), 500
 
 @app.route('/logout')

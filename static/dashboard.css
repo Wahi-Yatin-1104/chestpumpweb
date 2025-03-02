@@ -262,3 +262,61 @@
         font-size: 0.8rem;
     }
 }
+
+.bmi-overview {
+    background: var(--card);
+    border-radius: 15px;
+    padding: 1.5rem;
+    border: 1px solid #222;
+}
+
+.bmi-overview h3 {
+    color: var(--text);
+    margin-bottom: 1.5rem;
+}
+
+.bmi-calculator {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.bmi-result {
+    background: rgba(17, 17, 17, 0.7);
+    border-radius: 10px;
+    padding: 1.5rem;
+    text-align: center;
+}
+
+.meal-log {
+    margin-top: 1.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid #222;
+}
+
+.meal-log h4 {
+    color: var(--text);
+    margin-bottom: 1rem;
+}
+
+.meal-list {
+    display: grid;
+    gap: 1rem;
+}
+
+.meal-item {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 1rem;
+    align-items: center;
+    padding: 1rem;
+    background: rgba(17, 17, 17, 0.7);
+    border-radius: 10px;
+}
+
+.meal-type {
+    padding: 0.5rem;
+    border-radius: 8px;
+    font-size: 0.8rem;
+    text-transform: capitalize;
+}
