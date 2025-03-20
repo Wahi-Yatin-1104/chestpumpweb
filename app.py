@@ -1302,3 +1302,101 @@ def reset_password_request():
             flash('An error occurred while sending the reset email. Please try again.')
 
     return render_template('reset_request.html', form=form)
+
+@app.route('/api/bmi-history')
+@login_required
+def get_bmi_history():
+    try:
+        history = BMIHistory.query.filter_by(
+            user_id=current_user.id
+        ).order_by(BMIHistory.date.desc()).limit(10).all()
+        
+        history_data = [{
+            'date': record.date.strftime('%Y-%m-%d'),
+            'bmi': record.bmi,
+            'weight': record.weight,
+            'height': record.height
+        } for record in history]
+        
+        return jsonify({
+            'success': True,
+            'data': history_data
+        })
+        
+    except Exception as e:
+        print(f"Error fetching BMI history: {e}")
+        return jsonify({
+            'success': False,
+            'message': 'Failed to fetch BMI history'
+        }), 500
+    
+@app.route('/api/meals/today')
+@login_required
+def get_todays_meals():
+    try:
+        today = datetime.now().date()
+        meals = MealLog.query.filter(
+            MealLog.user_id == current_user.id,
+            func.date(MealLog.date) == today
+        ).order_by(MealLog.date.desc()).all()
+        
+        calorie_goal = 2000
+        if current_user.profile and hasattr(current_user.profile, 'calorie_goal'):
+            calorie_goal = current_user.profile.calorie_goal
+        
+        return jsonify({
+            'success': True,
+            'meals': [meal.to_dict() for meal in meals],
+            'calorie_goal': calorie_goal
+        })
+    except Exception as e:
+        print(f"Error fetching meals: {e}")
+        return jsonify({
+            'success': False,
+            'message': 'Failed to fetch meals'
+        }), 500
+
+@app.route('/api/meals/add', methods=['POST'])
+@login_required
+def add_meal():
+    try:
+        data = request.get_json()
+        print("Received meal data:", data)
+        required_fields = ['meal_type', 'food_name', 'calories']
+        for field in required_fields:
+            if field not in data:
+                return jsonify({
+                    'success': False,
+                    'message': f'Missing required field: {field}'
+                }), 400
+            
+        meal = MealLog(
+            user_id=current_user.id,
+            meal_type=str(data['meal_type']),
+            food_name=str(data['food_name']),
+            calories=float(data['calories']),
+            proteins=float(data.get('proteins', 0) or 0),
+            carbs=float(data.get('carbs', 0) or 0),
+            fats=float(data.get('fats', 0) or 0)
+        )
+        
+        print("Created meal object:", meal)
+        
+        db.session.add(meal)
+        db.session.commit()
+        
+        print("Meal saved successfully")
+        
+        return jsonify({
+            'success': True,
+            'message': 'Meal added successfully',
+            'meal': meal.to_dict()
+        })
+        
+    except Exception as e:
+        print(f"Error adding meal: {str(e)}")
+        db.session.rollback()
+        return jsonify({
+            'success': False,
+            'message': f'Failed to add meal: {str(e)}'
+        }), 500
