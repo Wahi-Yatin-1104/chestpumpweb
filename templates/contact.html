@@ -6,49 +6,59 @@
     <title>Contact Us - Pump Chest</title>
     <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
     <link rel="stylesheet" href="/static/styles.css">
-    <link rel="stylesheet" href="/static/login_style.css">
 </head>
 <body>
     <nav class="nav-container">
         <a href="/" class="logo">Pump <span>Chest</span></a>
         <div class="nav-btns">
-            <a href="/dashboard" class="btn outline">Dashboard</a>
-            <a href="/logout" class="btn outline">Logout</a>
+            {% if current_user.is_authenticated %}
+                <a href="/dashboard" class="btn outline">Dashboard</a>
+                <a href="/logout" class="btn outline">Logout</a>
+            {% else %}
+                <a href="/login" class="btn outline">Login</a>
+                <a href="/register" class="btn primary">Sign Up</a>
+            {% endif %}
         </div>
     </nav>
 
-    <section>
-        <div class="login-box" style="width: 500px;">
-            <h2>Contact Support</h2>
+    <section style="padding: 8rem 5% 4rem; min-height: 100vh; background: var(--bg);">
+        <div class="container">
+            <h1 style="color: var(--primary); font-size: 3rem; margin-bottom: 2rem;">Contact Support</h1>
             
-            {% with messages = get_flashed_messages(with_categories=true) %}
-                {% if messages %}
-                    {% for category, message in messages %}
-                        <div class="alert alert-{{ category }}">{{ message }}</div>
-                    {% endfor %}
-                {% endif %}
-            {% endwith %}
+            <div style="max-width: 600px; margin: 0 auto; background: var(--card); border-radius: 15px; padding: 2rem; border: 1px solid #222;">
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        {% for category, message in messages %}
+                            <div class="alert alert-{{ category }}">{{ message }}</div>
+                        {% endfor %}
+                    {% endif %}
+                {% endwith %}
 
-            <form method="POST">
-                <div class="input-box">
-                    <span class="icon"><i class='bx bx-user'></i></span>
-                    <input type="text" name="name" required>
-                    <label>Name</label>
-                </div>
+                <form method="POST">
+                    <div style="margin-bottom: 1.5rem;">
+                        <label style="display: block; color: #666; margin-bottom: 0.5rem;">Name</label>
+                        <div style="position: relative;">
+                            <i class='bx bx-user' style="position: absolute; left: 1rem; top: 50%; transform: translateY(-50%); color: var(--primary);"></i>
+                            <input type="text" name="name" required style="width: 100%; padding: 1rem 1rem 1rem 3rem; background: rgba(17, 17, 17, 0.7); border: 1px solid #333; border-radius: 8px; color: var(--text);">
+                        </div>
+                    </div>
 
-                <div class="input-box">
-                    <span class="icon"><i class='bx bx-envelope'></i></span>
-                    <input type="email" name="email" required>
-                    <label>Email</label>
-                </div>
+                    <div style="margin-bottom: 1.5rem;">
+                        <label style="display: block; color: #666; margin-bottom: 0.5rem;">Email</label>
+                        <div style="position: relative;">
+                            <i class='bx bx-envelope' style="position: absolute; left: 1rem; top: 50%; transform: translateY(-50%); color: var(--primary);"></i>
+                            <input type="email" name="email" required style="width: 100%; padding: 1rem 1rem 1rem 3rem; background: rgba(17, 17, 17, 0.7); border: 1px solid #333; border-radius: 8px; color: var(--text);">
+                        </div>
+                    </div>
 
-                <div class="input-box" style="border-bottom: none;">
-                    <textarea name="message" rows="5" required style="width: 100%; background: transparent; color: var(--text); border: 1px solid #333; padding: 0.75rem; margin-top: 1rem;"></textarea>
-                    <label>Your Message</label>
-                </div>
+                    <div style="margin-bottom: 1.5rem;">
+                        <label style="display: block; color: #666; margin-bottom: 0.5rem;">Message</label>
+                        <textarea name="message" rows="5" required style="width: 100%; background: rgba(17, 17, 17, 0.7); border: 1px solid #333; border-radius: 8px; color: var(--text); padding: 1rem;"></textarea>
+                    </div>
 
-                <button type="submit">Send Message</button>
-            </form>
+                    <button type="submit" class="btn primary" style="width: 100%;">Send Message</button>
+                </form>
+            </div>
         </div>
     </section>
 </body>

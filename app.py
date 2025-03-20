@@ -1,4 +1,4 @@
-from flask import Flask, render_template, Response, jsonify, request, redirect, url_for, flash
+from flask import Flask, render_template, Response, jsonify, request, redirect, url_for, flash, session
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from flask_mail import Mail, Message
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -6,13 +6,20 @@ from datetime import datetime, timedelta
 import os
 from dotenv import load_dotenv
 import secrets
-from models import db, User, PasswordReset,BMIHistory, OneRepMax, MealLog
-import cv2  
-import mediapipe as mp  
+from models import db, User, PasswordReset, UserProfile, WorkoutSession, BMIHistory, MealLog, OneRepMax
+from flask_migrate import Migrate
+import cv2
+import mediapipe as mp
 import numpy as np
 import time
 from flask_socketio import SocketIO, emit
 from forms import ResetPasswordRequestForm, ResetPasswordForm
+import json
+from functools import wraps
+from sqlalchemy import func
+import csv
+import io
+from flask import make_response, send_file
 
 # Load environment variables
 load_dotenv()
@@ -429,14 +436,14 @@ def dashboard():
             WorkoutSession.date >= thirty_days_ago,
             WorkoutSession.is_completed == True
         ).order_by(WorkoutSession.date.desc()).all()
-        
+
         current_month_start = datetime.utcnow().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
         monthly_sessions = [s for s in sessions if s.date >= current_month_start]
-        
+
         print(f"Found {len(monthly_sessions)} workouts for current month")
         for session in monthly_sessions:
             print(f"Workout: {session.date}, Calories: {session.calories_burned}, Duration: {session.duration}s")
-        
+
         total_calories = 0
         total_duration = 0
         
@@ -445,7 +452,7 @@ def dashboard():
                 total_calories += float(session.calories_burned)
             if session.duration is not None:
                 total_duration += int(session.duration)
-        
+
         total_duration_minutes = total_duration // 60
         
         stats = {
@@ -454,15 +461,14 @@ def dashboard():
             'workouts_count': len(monthly_sessions),
             'streak': current_user.streak_count or 0
         }
-        
+
         print(f"Dashboard stats: {stats}")
-        
         workout_data = {
             'dates': [s.date.strftime('%Y-%m-%d') for s in sessions],
             'calories': [round(float(s.calories_burned or 0), 1) for s in sessions],
             'durations': [round(float(s.duration or 0) / 60, 1) if s.duration else 0 for s in sessions]
         }
-        
+
         calendar_data = {s.date.strftime('%Y-%m-%d'): s.to_calendar_dict() for s in sessions}
         
         return render_template('dashboard.html', 
@@ -476,19 +482,24 @@ def dashboard():
         flash('Error loading dashboard data')
         return redirect(url_for('home'))
 
+# Workout routes
 @app.route('/workout')
+@login_required
 def workout():
     return render_template('workout.html')
 
 @app.route('/workout/video_feed')
+@login_required
 def video_feed():
     return Response(gen_frames(),
-                    mimetype='multipart/x-mixed-replace; boundary=frame')
+                   mimetype='multipart/x-mixed-replace; boundary=frame')
 
 @app.route('/workout/change_mode/<new_mode>')
+@login_required
 def change_mode(new_mode):
     global mode, cnt, pos
-    if new_mode in ['sq', 'pu', 'cu']:
+    valid_modes = ['sq', 'pu', 'cu', 'lu', 'pl', 'cr', 'mc', 'jj', 'bp', 'dl', 'fs', 'br', 'op']
+    if new_mode in valid_modes:
         mode = new_mode
         cnt = 0
         pos = None
@@ -496,256 +507,708 @@ def change_mode(new_mode):
     return jsonify({'success': False})
 
 @app.route('/workout/start')
+@login_required
 def start_exercise():
-    global workout_start
-    workout_start = time.time()
-    return jsonify({'success': True})
+    global workout_start, current_workout_session, total_reps, cal_burnt, cnt, pos
+    
+    try:
+        total_reps = {"sq": 0, "cu": 0, "pu": 0}
+        cal_burnt = 0
+        cnt = 0
+        pos = None
+        workout_start = time.time()
+        
+        print("Debug - Starting new workout session")
+        print(f"Initial state: total_reps={total_reps}, cal_burnt={cal_burnt}")
+        current_workout_session = WorkoutSession(
+            user_id=current_user.id,
+            exercise_data={},
+            calories_burned=0.0,
+            duration=0,
+            avg_heart_rate=0.0,
+            date=datetime.utcnow(),
+            is_completed=False
+        )
+        db.session.add(current_workout_session)
+        db.session.commit()
+        
+        print(f"New session created: {current_workout_session.to_dict()}")
+        
+        return jsonify({'success': True})
+    except Exception as e:
+        print(f"Error starting workout: {e}")
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)})
 
 @app.route('/workout/stop')
+@login_required
 def stop_exercise():
-    global cnt, pos, cal_burnt, workout_start
-    cnt = 0
-    pos = None
-    cal_burnt = 0
-    workout_start = time.time()
-    return jsonify({'success': True})
-
-@app.route('/register', methods=['GET', 'POST'])
-def register():
-    if request.method == 'POST':
-        email = request.form.get('email')
-        password = request.form.get('password')
-        name = request.form.get('name')
-
-        if User.query.filter_by(email=email).first():
-            flash('Email already registered')
-            return redirect(url_for('register'))
-
-        user = User(email=email, name=name)
-        user.set_password(password)
-        db.session.add(user)
-        db.session.commit()
-
-        login_user(user)
-        return redirect(url_for('workout'))
-
-    return render_template('register.html')
-
-@app.route('/contact', methods=['GET', 'POST'])
-def contact():
-    if request.method == 'POST':
-        # Get form data
-        name = request.form.get('name')
-        email = request.form.get('email')
-        message = request.form.get('message')
-        
-        try:
-            # Create and send email
-            msg = Message(
-                subject=f"Contact Form Submission from {name}",
-                sender=app.config['MAIL_USERNAME'],
-                recipients=[app.config['MAIL_USERNAME']]  # Send to your support email
-            )
-            msg.body = f"""
-            Name: {name}
-            Email: {email}
-
-            Message:
-            {message}
-            """
-            
-            mail.send(msg)
-            
-            flash('Your message has been sent successfully!', 'success')
-            return redirect(url_for('contact'))
-        
-        except Exception as e:
-            print(f"Error sending contact form: {e}")
-            flash('An error occurred. Please try again later.', 'error')
+    global workout_start, cnt, pos, cal_burnt, current_workout_session
     
-    return render_template('contact.html')
+    try:
+        print("Attempting to stop workout...")
+        
+        if current_workout_session:
+            if workout_start:
+                duration = int(time.time() - workout_start)
+                current_workout_session.duration = duration
+                
+            current_workout_session.calories_burned = cal_burnt
+            current_workout_session.exercise_data = dict(total_reps)
+            
+            db.session.commit()
+            print("Workout session updated successfully")
 
-@app.route('/privacy-policy')
-def privacy_policy():
-    return render_template('privacy_policy.html')
+        workout_start = None
+        cnt = 0
+        pos = None
+        
+        return jsonify({
+            'success': True,
+            'message': 'Workout stopped successfully'
+        })
+            
+    except Exception as e:
+        print(f"Error stopping workout: {e}")
+        db.session.rollback()
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        })
 
-@app.route('/get-started')
-def get_started():
-    if current_user.is_authenticated:
-        return redirect(url_for('workout'))
+@app.route('/workout/finish', methods=['POST'])
+@login_required
+def finish_workout():
+    global current_workout_session, workout_start, total_reps, cal_burnt
+    
+    try:
+        print("\n===== WORKOUT FINISH =====")
+        data = request.get_json()
+        print("Received workout data:", data)
+        
+        if not current_workout_session:
+            print("ERROR: No active workout session!")
+            return jsonify({
+                'success': False,
+                'message': 'No active workout session found'
+            }), 400
+
+        calories_burned = float(data.get('calories_burned', cal_burnt))
+        current_workout_session.calories_burned = calories_burned
+        print(f"Set calories_burned to: {calories_burned}")
+
+        if 'duration' in data and data['duration'] is not None:
+            try:
+                duration_seconds = int(data['duration'])
+                print(f"Using exact duration from payload: {duration_seconds} seconds")
+                current_workout_session.duration = duration_seconds
+            except (ValueError, TypeError) as e:
+                print(f"Error with duration: {e}, using fallback calculation")
+                if workout_start:
+                    duration_seconds = int(time.time() - workout_start)
+                    current_workout_session.duration = duration_seconds
+                    print(f"Fallback duration set to: {duration_seconds} seconds")
+        
+        current_workout_session.exercise_data = dict(total_reps)
+        current_workout_session.is_completed = True
+        current_user.update_streak()
+        db.session.add(current_workout_session)
+        db.session.commit()
+        print(f"Saved workout with duration: {current_workout_session.duration} seconds")
+        workout_start = None
+        session_id = current_workout_session.id
+        current_workout_session = None
+        
+        return jsonify({
+            'success': True,
+            'message': 'Workout saved successfully'
+        })
+            
+    except Exception as e:
+        print(f"Error finishing workout: {e}")
+        import traceback
+        traceback.print_exc()
+        db.session.rollback()
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+        
+@app.route('/api/workout-history')
+@login_required
+def get_workout_history():
+    try:
+        workouts = WorkoutSession.query.filter_by(
+            user_id=current_user.id,
+            is_completed=True
+        ).order_by(WorkoutSession.date.desc()).all()
+
+        workout_data = {}
+        for workout in workouts:
+            date = workout.date.strftime('%Y-%m-%d')
+            if date not in workout_data:
+                workout_data[date] = []
+            workout_data[date].append(workout.to_calendar_dict())
+        
+        return jsonify(workout_data)
+    except Exception as e:
+        print(f"Error fetching workout history: {e}")
+        return jsonify({'error': 'Failed to fetch workout history'}), 500
+
+def get_ang(a, b, c):
+    if not all([a, b, c]):
+        return 0
+    a = np.array([a.x, a.y])
+    b = np.array([b.x, b.y])
+    c = np.array([c.x, c.y])
+    rad = np.arctan2(c[1] - b[1], c[0] - b[0]) - np.arctan2(a[1] - b[1], a[0] - b[0])
+    ang = np.abs(rad * 180.0 / np.pi)
+    if ang > 180.0:
+        ang = 360 - ang
+    return ang
+
+def check_sq(pts):
+    hip = pts[mp_pose.PoseLandmark.LEFT_HIP.value]
+    knee = pts[mp_pose.PoseLandmark.LEFT_KNEE.value]
+    ankle = pts[mp_pose.PoseLandmark.LEFT_ANKLE.value]
+    shoulder = pts[mp_pose.PoseLandmark.LEFT_SHOULDER.value]
+
+    k_ang = get_ang(hip, knee, ankle)
+    b_ang = get_ang(shoulder, hip, knee)
+    knee_dist = np.sqrt((knee.x - ankle.x) ** 2 + (knee.y - ankle.y) ** 2)
+
+    issues = []
+    if b_ang < 160:
+        issues.append("back not straight")
+    if k_ang < 90:
+        issues.append("squat too deep")
+    if knee_dist > 0.3:
+        issues.append("knees over toes")
+
+    if k_ang > 170:
+        return "up", not bool(issues), issues
+    elif k_ang < 100:
+        return "down", not bool(issues), issues
+    return None, True, issues
+
+def check_pu(pts):
+    shoulder = pts[mp_pose.PoseLandmark.LEFT_SHOULDER.value]
+    elbow = pts[mp_pose.PoseLandmark.LEFT_ELBOW.value]
+    wrist = pts[mp_pose.PoseLandmark.LEFT_WRIST.value]
+    hip = pts[mp_pose.PoseLandmark.LEFT_HIP.value]
+    ankle = pts[mp_pose.PoseLandmark.LEFT_ANKLE.value]
+
+    a_ang = get_ang(shoulder, elbow, wrist)
+    b_ang = get_ang(shoulder, hip, ankle)
+    hip_sag = abs(hip.y - shoulder.y)
+
+    issues = []
+    if not 160 < b_ang < 200:
+        issues.append("body not straight")
+    if hip_sag > 0.1:
+        issues.append("hips sagging")
+    if a_ang > 160:
+        issues.append("go lower")
+
+    if a_ang > 150:
+        return "up", not bool(issues), issues
+    elif a_ang < 90:
+        return "down", not bool(issues), issues
+    return None, True, issues
+
+def check_cu(pts):
+    shoulder = pts[mp_pose.PoseLandmark.RIGHT_SHOULDER.value]
+    elbow = pts[mp_pose.PoseLandmark.RIGHT_ELBOW.value]
+    wrist = pts[mp_pose.PoseLandmark.RIGHT_WRIST.value]
+
+    ang = get_ang(shoulder, elbow, wrist)
+    drift = abs(elbow.x - shoulder.x)
+    wrist_mov = abs(wrist.x - elbow.x)
+
+    issues = []
+    if drift > 0.1:
+        issues.append("elbows out")
+    if wrist_mov > 0.15:
+        issues.append("wrist not stable")
+    if ang > 160:
+        issues.append("extend fully")
+
+    if ang > 150:
+        return "down", not bool(issues), issues
+    elif ang < 60:
+        return "up", not bool(issues), issues
+    return None, True, issues
+    
+def check_lunge(pts):
+    left_hip = pts[mp_pose.PoseLandmark.LEFT_HIP.value]
+    left_knee = pts[mp_pose.PoseLandmark.LEFT_KNEE.value]
+    left_ankle = pts[mp_pose.PoseLandmark.LEFT_ANKLE.value]
+    right_knee = pts[mp_pose.PoseLandmark.RIGHT_KNEE.value]
+    right_ankle = pts[mp_pose.PoseLandmark.RIGHT_ANKLE.value]
+    shoulder = pts[mp_pose.PoseLandmark.LEFT_SHOULDER.value]
+
+    front_knee_angle = get_ang(left_hip, left_knee, left_ankle)
+    back_knee_angle = get_ang(left_hip, right_knee, right_ankle)
+    torso_angle = get_ang(shoulder, left_hip, left_knee)
+
+    issues = []
+    if front_knee_angle > 100:
+        issues.append("bend front knee more")
+    if back_knee_angle > 100:
+        issues.append("lower back knee")
+    if torso_angle < 160:
+        issues.append("keep torso upright")
+    if front_knee_angle > 150 and back_knee_angle > 150:
+        return "up", not bool(issues), issues
+    elif front_knee_angle < 100 and back_knee_angle < 100:
+        return "down", not bool(issues), issues
+    return None, True, issues
+    
+def check_deadlift(pts):
+    shoulder = pts[mp_pose.PoseLandmark.LEFT_SHOULDER.value]
+    hip = pts[mp_pose.PoseLandmark.LEFT_HIP.value]
+    knee = pts[mp_pose.PoseLandmark.LEFT_KNEE.value]
+    ankle = pts[mp_pose.PoseLandmark.LEFT_ANKLE.value]
+    
+    hip_angle = get_ang(shoulder, hip, knee)
+    knee_angle = get_ang(hip, knee, ankle)
+    back_angle = get_ang(shoulder, hip, ankle)
+    
+    print(f"Deadlift - hip angle: {hip_angle}, knee angle: {knee_angle}, back angle: {back_angle}")
+    
+    issues = []
+    if back_angle < 150:
+        issues.append("straighten back")
+    if hip_angle < 45:
+        issues.append("hips too low")
+    if knee_angle < 140 and hip_angle > 120:
+        issues.append("bend knees more")
+    if hip_angle > 160 and knee_angle > 160:
+        return "up", not bool(issues), issues
+    elif hip_angle < 90 and knee_angle < 160:
+        return "down", not bool(issues), issues
+    return None, True, issues
+    
+def check_bench_press(pts):
+    shoulder = pts[mp_pose.PoseLandmark.LEFT_SHOULDER.value]
+    elbow = pts[mp_pose.PoseLandmark.LEFT_ELBOW.value]
+    wrist = pts[mp_pose.PoseLandmark.LEFT_WRIST.value]
+
+    arm_angle = get_ang(shoulder, elbow, wrist)
+    elbow_position = elbow.y - shoulder.y
+    
+    print(f"Bench press - arm angle: {arm_angle}, elbow position: {elbow_position}")
+    
+    issues = []
+    if elbow_position > 0.1:
+        issues.append("elbows too high")
+    if arm_angle < 45:
+        issues.append("keep tension")
+    if arm_angle > 160:
+        return "up", not bool(issues), issues
+    elif arm_angle < 90:
+        return "down", not bool(issues), issues
+    return None, True, issues
+
+def check_overhead_press(pts):
+    shoulder = pts[mp_pose.PoseLandmark.LEFT_SHOULDER.value]
+    elbow = pts[mp_pose.PoseLandmark.LEFT_ELBOW.value]
+    wrist = pts[mp_pose.PoseLandmark.LEFT_WRIST.value]
+    hip = pts[mp_pose.PoseLandmark.LEFT_HIP.value]
+
+    arm_angle = get_ang(shoulder, elbow, wrist)
+    torso_angle = get_ang(shoulder, hip, pts[mp_pose.PoseLandmark.LEFT_ANKLE.value])
+    
+    issues = []
+    if torso_angle < 160:
+        issues.append("maintain upright posture")
+    if arm_angle < 150 and wrist.y > shoulder.y:
+        issues.append("press fully overhead")
+    if wrist.y < shoulder.y and arm_angle > 160:
+        return "up", not bool(issues), issues
+    elif wrist.y > shoulder.y and arm_angle < 100:
+        return "down", not bool(issues), issues
+    return None, True, issues
+
+def check_bent_over_row(pts):
+    shoulder = pts[mp_pose.PoseLandmark.LEFT_SHOULDER.value]
+    hip = pts[mp_pose.PoseLandmark.LEFT_HIP.value]
+    knee = pts[mp_pose.PoseLandmark.LEFT_KNEE.value]
+    elbow = pts[mp_pose.PoseLandmark.LEFT_ELBOW.value]
+
+    torso_angle = get_ang(shoulder, hip, knee)
+    pull_angle = get_ang(shoulder, elbow, hip)
+    
+    issues = []
+    if torso_angle > 135:
+        issues.append("hinge more at hips")
+    if pull_angle > 100:
+        issues.append("pull higher")
+    if elbow.y < shoulder.y:
+        return "up", not bool(issues), issues
+    elif elbow.y > shoulder.y + 0.2:
+        return "down", not bool(issues), issues
+    return None, True, issues
+
+def check_front_squat(pts):
+    shoulder = pts[mp_pose.PoseLandmark.LEFT_SHOULDER.value]
+    elbow = pts[mp_pose.PoseLandmark.LEFT_ELBOW.value]
+    hip = pts[mp_pose.PoseLandmark.LEFT_HIP.value]
+    knee = pts[mp_pose.PoseLandmark.LEFT_KNEE.value]
+    ankle = pts[mp_pose.PoseLandmark.LEFT_ANKLE.value]
+
+    knee_angle = get_ang(hip, knee, ankle)
+    torso_angle = get_ang(shoulder, hip, knee)
+    elbow_height = elbow.y - shoulder.y
+    
+    issues = []
+    if torso_angle < 150:
+        issues.append("keep chest up")
+    if elbow_height < -0.1:
+        issues.append("elbows up")
+    if knee_angle < 70:
+        issues.append("squat depth good")
+    if knee_angle > 160:
+        return "up", not bool(issues), issues
+    elif knee_angle < 90:
+        return "down", not bool(issues), issues
+    return None, True, issues
+
+def check_crunch(pts):
+    shoulder = pts[mp_pose.PoseLandmark.LEFT_SHOULDER.value]
+    hip = pts[mp_pose.PoseLandmark.LEFT_HIP.value]
+    knee = pts[mp_pose.PoseLandmark.LEFT_KNEE.value]
+    ankle = pts[mp_pose.PoseLandmark.LEFT_ANKLE.value]
+
+    trunk_angle = get_ang(shoulder, hip, knee)
+    leg_angle = get_ang(hip, knee, ankle)
+
+    issues = []
+    if leg_angle > 100:
+        issues.append("keep knees bent")
+    if trunk_angle > 130:
+        issues.append("crunch higher")
+    if trunk_angle > 150:
+        return "down", not bool(issues), issues
+    elif trunk_angle < 110:
+        return "up", not bool(issues), issues
+    return None, True, issues
+
+    
+def check_plank(pts):
+    shoulder = pts[mp_pose.PoseLandmark.LEFT_SHOULDER.value]
+    elbow = pts[mp_pose.PoseLandmark.LEFT_ELBOW.value]
+    hip = pts[mp_pose.PoseLandmark.LEFT_HIP.value]
+    knee = pts[mp_pose.PoseLandmark.LEFT_KNEE.value]
+    ankle = pts[mp_pose.PoseLandmark.LEFT_ANKLE.value]
+
+    arm_angle = get_ang(shoulder, elbow, hip)
+    body_angle = get_ang(shoulder, hip, ankle)
+    leg_angle = get_ang(hip, knee, ankle)
+
+    issues = []
+    if arm_angle < 75 or arm_angle > 105:
+        issues.append("align shoulders over elbows")
+    if body_angle < 160:
+        issues.append("straighten body")
+    if leg_angle < 160:
+        issues.append("straighten legs")
+    if arm_angle >= 75 and arm_angle <= 105 and body_angle >= 160 and leg_angle >= 160:
+        elapsed = int(time.time() - workout_start) if workout_start else 0
+        if elapsed % 10 == 0 and elapsed > 0:
+            return "up", not bool(issues), issues
+        return "hold", not bool(issues), issues
+    return None, True, issues
+    
+def check_mountain_climber(pts):
+    shoulder = pts[mp_pose.PoseLandmark.LEFT_SHOULDER.value]
+    hip = pts[mp_pose.PoseLandmark.LEFT_HIP.value]
+    left_knee = pts[mp_pose.PoseLandmark.LEFT_KNEE.value]
+    right_knee = pts[mp_pose.PoseLandmark.RIGHT_KNEE.value]
+    ankle = pts[mp_pose.PoseLandmark.LEFT_ANKLE.value]
+
+    plank_angle = get_ang(shoulder, hip, ankle)
+    left_knee_angle = get_ang(hip, left_knee, ankle)
+    right_knee_angle = get_ang(hip, right_knee, ankle)
+
+    issues = []
+    if plank_angle < 160:
+        issues.append("keep body straight")
+    if min(left_knee_angle, right_knee_angle) > 100:
+        issues.append("drive knees higher")
+    if left_knee_angle < 90:
+        return "right", not bool(issues), issues
+    elif right_knee_angle < 90:
+        return "right", not bool(issues), issues
+    return None, True, issues
+    
+def check_jumping_jack(pts):
+    left_shoulder = pts[mp_pose.PoseLandmark.LEFT_SHOULDER.value]
+    right_shoulder = pts[mp_pose.PoseLandmark.RIGHT_SHOULDER.value]
+    left_hip = pts[mp_pose.PoseLandmark.LEFT_HIP.value]
+    right_hip = pts[mp_pose.PoseLandmark.RIGHT_HIP.value]
+    left_ankle = pts[mp_pose.PoseLandmark.LEFT_ANKLE.value]
+    right_ankle = pts[mp_pose.PoseLandmark.RIGHT_ANKLE.value]
+
+    arm_distance = np.sqrt((left_shoulder.x - right_shoulder.x)**2)
+    leg_distance = np.sqrt((left_ankle.x - right_ankle.x)**2)
+
+    issues = []
+    if arm_distance < 0.3 and leg_distance > 0.3:
+        issues.append("raise arms with jump")
+    if arm_distance > 0.3 and leg_distance < 0.3:
+        issues.append("jump feet out")
+    if arm_distance < 0.2 and leg_distance < 0.2:
+        return "closed", not bool(issues), issues
+    elif arm_distance > 0.4 and leg_distance > 0.3:
+        return "open", not bool(issues), issues
+    return None, True, issues
+
+def check_burpee(pts):
+    shoulder = pts[mp_pose.PoseLandmark.LEFT_SHOULDER.value]
+    hip = pts[mp_pose.PoseLandmark.LEFT_HIP.value]
+    knee = pts[mp_pose.PoseLandmark.LEFT_KNEE.value]
+    ankle = pts[mp_pose.PoseLandmark.LEFT_ANKLE.value]
+    wrist = pts[mp_pose.PoseLandmark.LEFT_WRIST.value]
+
+    hip_height = hip.y
+    shoulder_height = shoulder.y
+    plank_angle = get_ang(shoulder, hip, ankle)
+    knee_angle = get_ang(hip, knee, ankle)
+
+    issues = []
+    
+    if hip_height < 0.4:
+        if knee_angle < 160:
+            issues.append("jump higher")
+        phase = "jump"
+    elif hip_height > 0.8:
+        if plank_angle < 160:
+            issues.append("keep body straight")
+        phase = "plank"
     else:
-        return redirect(url_for('login'))
-        
-with app.app_context():
-    db.create_all()
+        if knee_angle > 100:
+            issues.append("squat lower")
+        phase = "squat"
 
-@app.route('/api/save-bmi', methods=['POST'])
-@login_required
-def save_bmi():
-    try:
-        data = request.get_json()
-        height = float(data.get('height'))
-        weight = float(data.get('weight'))
-        bmi = float(data.get('bmi'))
-        
-        bmi_record = BMIHistory(
-            user_id=current_user.id,
-            height=height,
-            weight=weight,
-            bmi=bmi
-        )
-        db.session.add(bmi_record)
-        
-        if current_user.profile:
-            current_user.profile.height = height
-            current_user.profile.weight = weight
-        
-        db.session.commit()
-        
-        return jsonify({
-            'success': True,
-            'message': 'BMI data saved successfully'
-        })
-        
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({
-            'success': False,
-            'message': 'Failed to save BMI data'
-        }), 500
-
-@app.route('/api/bmi-history')
-@login_required
-def get_bmi_history():
-    try:
-        history = BMIHistory.query.filter_by(
-            user_id=current_user.id
-        ).order_by(BMIHistory.date.desc()).limit(10).all()
-        
-        history_data = [{
-            'date': record.date.strftime('%Y-%m-%d'),
-            'bmi': record.bmi,
-            'weight': record.weight,
-            'height': record.height
-        } for record in history]
-        
-        return jsonify({
-            'success': True,
-            'data': history_data
-        })
-        
-    except Exception as e:
-        return jsonify({
-            'success': False,
-            'message': 'Failed to fetch BMI history'
-        }), 500
+    if phase == "jump":
+        return "up", not bool(issues), issues
+    elif phase == "plank":
+        return "down", not bool(issues), issues
+    return None, True, issues
     
-@app.route('/api/save_one_rep_max', methods=['POST'])
-@login_required
-def save_one_rep_max():
-    try:
-        data = request.get_json()
-        required_fields = ['exercise', 'weight', 'reps', 'estimated_one_rep_max']
-        for field in required_fields:
-            if field not in data:
-                return jsonify({
-                    'success': False,
-                    'message': f'Missing required field: {field}'
-                }), 400
-        
-        orm = OneRepMax(
-            user_id=current_user.id,
-            exercise=data['exercise'],
-            weight=float(data['weight']),
-            reps=int(data['reps']),
-            estimated_one_rep_max=float(data['estimated_one_rep_max'])
-        )
-        
-        db.session.add(orm)
-        db.session.commit()
-        
-        return jsonify({
-            'success': True,
-            'message': 'One rep max saved successfully',
-            'data': orm.to_dict()
-        })
-        
-    except Exception as e:
-        print(f"Error saving one rep max: {str(e)}")
-        db.session.rollback()
-        return jsonify({
-            'success': False,
-            'message': f'Failed to save one rep max: {str(e)}'
-        }), 500
+def check_exercise(pts):
+    global cnt, pos, total_reps, cal_burnt, mode, current_workout_session
 
-@app.route('/api/meals/today')
-@login_required
-def get_todays_meals():
-    try:
-        today = datetime.now().date()
-        meals = MealLog.query.filter(
-            MealLog.user_id == current_user.id,
-            func.date(MealLog.date) == today
-        ).order_by(MealLog.date.desc()).all()
-        
-        calorie_goal = 2000
-        if current_user.profile and hasattr(current_user.profile, 'calorie_goal'):
-            calorie_goal = current_user.profile.calorie_goal
-        
-        return jsonify({
-            'success': True,
-            'meals': [meal.to_dict() for meal in meals],
-            'calorie_goal': calorie_goal
-        })
-    except Exception as e:
-        return jsonify({
-            'success': False,
-            'message': 'Failed to fetch meals'
-        }), 500
+    new_pos = None
+    good = True
+    issues = []
 
-@app.route('/api/meals/add', methods=['POST'])
-@login_required
-def add_meal():
-    try:
-        data = request.get_json()
-        required_fields = ['meal_type', 'food_name', 'calories']
-        for field in required_fields:
-            if field not in data:
-                return jsonify({
-                    'success': False,
-                    'message': f'Missing required field: {field}'
-                }), 400
+    if mode == "sq":
+        new_pos, good, issues = check_sq(pts)
+    elif mode == "pu":
+        new_pos, good, issues = check_pu(pts)
+    elif mode == "cu":
+        new_pos, good, issues = check_cu(pts)
+    elif mode == "lu":
+        new_pos, good, issues = check_lunge(pts)
+    elif mode == "pl":
+        new_pos, good, issues = check_plank(pts)
+    elif mode == "cr":
+        new_pos, good, issues = check_crunch(pts)
+    elif mode == "mc":
+        new_pos, good, issues = check_mountain_climber(pts)
+    elif mode == "jj":
+        new_pos, good, issues = check_jumping_jack(pts)
+    elif mode == "bp":
+        new_pos, good, issues = check_bench_press(pts)
+    elif mode == "dl":
+        new_pos, good, issues = check_deadlift(pts)
+    elif mode == "fs":
+        new_pos, good, issues = check_front_squat(pts)
+    elif mode == "br":
+        new_pos, good, issues = check_bent_over_row(pts)
+    elif mode == "op":
+        new_pos, good, issues = check_overhead_press(pts)
 
-        meal = MealLog(
-            user_id=current_user.id,
-            meal_type=str(data['meal_type']),
-            food_name=str(data['food_name']),
-            calories=float(data['calories']),
-            proteins=float(data.get('proteins', 0) or 0),
-            carbs=float(data.get('carbs', 0) or 0),
-            fats=float(data.get('fats', 0) or 0)
-        )
+    if new_pos != pos:
+        print(f"Exercise: {mode}, Position change: {pos} -> {new_pos}, Good form: {good}")
         
-        db.session.add(meal)
-        db.session.commit()    
-        return jsonify({
-            'success': True,
-            'message': 'Meal added successfully',
-            'meal': meal.to_dict()
-        })
-        
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({
-            'success': False,
-            'message': f'Failed to add meal: {str(e)}'
-        }), 500
+        if pos and good:
+            calories = {
+                "sq": 0.32,
+                "pu": 0.28,
+                "cu": 0.15,
+                "lu": 0.30,
+                "pl": 0.25,
+                "cr": 0.20,
+                "mc": 0.35,
+                "jj": 0.40,
+                "bp": 0.50,
+                "dl": 0.80,
+                "fs": 0.70,
+                "br": 0.50,
+                "op": 0.55
+            }
+            cal_burnt += calories.get(mode, 0.30)
 
-@app.route('/logout')
-@login_required
-def logout():
-    logout_user()
-    return redirect(url_for('home'))
+            with app.app_context():
+                try:
+                    if current_workout_session:
+                        current_workout_session.calories_burned = round(cal_burnt, 2)
+                        if workout_start:
+                            current_duration = int(time.time() - workout_start)
+                            current_workout_session.duration = current_duration
+                        
+                        exercise_data = current_workout_session.exercise_data or {}
+                        exercise_data[mode] = total_reps[mode]
+                        current_workout_session.exercise_data = exercise_data
+                        
+                        current_workout_session.is_completed = False
+                        
+                        db.session.commit()
+                except Exception as e:
+                    print(f"Error updating workout session: {e}")
+                    db.session.rollback()
+                
+        pos = new_pos
+        if new_pos in ["up", "right", "open"] and good:
+            cnt += 1
+            total_reps[mode] += 1
+            print(f"Rep counted for {mode}, total reps: {total_reps[mode]}")
+
+        duration = int(time.time() - workout_start) if workout_start else 0
+        stats_update = {
+            "mode": mode,
+            "reps": cnt,
+            "calories": round(cal_burnt, 2),
+            "duration": duration,
+            "form_issues": issues
+        }
+        socketio.emit("update_stats", stats_update)
+
+    return issues
+
+def gen_frames():
+    cap = cv2.VideoCapture(0)
+    with mp_pose.Pose(
+        min_detection_confidence=0.7,
+        min_tracking_confidence=0.7,
+        model_complexity=2
+    ) as pose:
+        while True:
+            success, frame = cap.read()
+            if not success:
+                break
+
+            try:
+                frame = cv2.flip(frame, 1)
+                rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                results = pose.process(rgb)
+
+                if results.pose_landmarks:
+                    mp_draw.draw_landmarks(
+                        frame,
+                        results.pose_landmarks,
+                        mp_pose.POSE_CONNECTIONS,
+                        mp_draw.DrawingSpec(color=(0, 255, 0), thickness=2, circle_radius=2),
+                        mp_draw.DrawingSpec(color=(0, 0, 255), thickness=2, circle_radius=2)
+                    )
+
+                    try:
+                        issues = check_exercise(results.pose_landmarks.landmark)
+                        if issues:
+                            overlay = frame.copy()
+                            cv2.addWeighted(overlay, 0.3, frame, 0.7, 0, frame)
+                            msg = ' & '.join(issues)
+                            cv2.putText(frame, f'form: {msg}', (10, 90), 
+                                      cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
+                        else:
+                            cv2.putText(frame, 'form: good', (10, 90), 
+                                      cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+                    except Exception as e:
+                        print(f"Error processing exercise: {e}")
+
+                cv2.putText(frame, f'MODE:{mode}', (10, 30), 
+                           cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+                cv2.putText(frame, f'CNT:{cnt}', (10, 60), 
+                           cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+                cv2.putText(frame, f'CAL:{cal_burnt:.1f}', (10, 150), 
+                           cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+
+                duration = int(time.time() - workout_start) if workout_start else 0
+                mins, secs = divmod(duration, 60)
+                cv2.putText(frame, f'TIME:{mins:02d}:{secs:02d}', (10, 120), 
+                           cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+
+                ret, buffer = cv2.imencode('.jpg', frame)
+                frame = buffer.tobytes()
+                yield (b'--frame\r\n'
+                       b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
+            except Exception as e:
+                print(f"Error in frame generation: {e}")
+                continue
+            
+EXERCISE_THRESHOLDS = {
+    'lu': {
+        'front_knee': {'min': 80, 'max': 100},
+        'back_knee': {'min': 80, 'max': 100},
+        'torso': {'min': 160, 'max': 180}
+    },
+    'pl': {
+        'arm': {'min': 75, 'max': 105},
+        'body': {'min': 160, 'max': 180},
+        'leg': {'min': 160, 'max': 180}
+    },
+    'cr': {
+        'trunk': {'min': 110, 'max': 150},
+        'leg': {'min': 70, 'max': 100}
+    },
+    'mc': {
+        'plank': {'min': 160, 'max': 180},
+        'knee_drive': {'min': 90, 'max': 180}
+    },
+    'jj': {
+        'arm_spread': {'min': 0.3, 'max': 0.5},
+        'leg_spread': {'min': 0.3, 'max': 0.5}
+    },
+    'bp': {
+        'jump': {'min': 160, 'max': 180},
+        'plank': {'min': 160, 'max': 180},
+        'squat': {'min': 80, 'max': 100}
+    },
+    'dl': {
+        'hip': {'min': 90, 'max': 160},
+        'knee': {'min': 140, 'max': 180},
+        'back': {'min': 150, 'max': 180}
+    },
+    'fs': {
+        'knee': {'min': 90, 'max': 160},
+        'torso': {'min': 150, 'max': 180},
+        'elbow': {'min': -0.1, 'max': 0.1}
+    },
+    'br': {
+        'torso': {'min': 45, 'max': 135},
+        'pull': {'min': 45, 'max': 100}
+    },
+    'op': {
+        'arm': {'min': 100, 'max': 160},
+        'torso': {'min': 160, 'max': 180}
+    }
+}
+
+def get_vertical_distance(p1, p2):
+    return abs(p1.y - p2.y)
+
+def get_horizontal_distance(p1, p2):
+    return abs(p1.x - p2.x)
+
+def get_points_distance(p1, p2):
+    return np.sqrt((p1.x - p2.x)**2 + (p1.y - p2.y)**2)
+
+def check_range(value, min_val, max_val):
+    """Check if a value is within the specified range"""
+    return min_val <= value <= max_val
 
 @socketio.on("send_heart_rate")
 def handle_heart_rate(data):
@@ -755,7 +1218,87 @@ def handle_heart_rate(data):
             db.session.commit()
         emit("update_heart_rate", data, broadcast=True)
     except Exception as e:
+        print(f"Heart rate error: {e}")
         db.session.rollback()
 
-if __name__ == '__main__':
-    socketio.run(app, debug=True)
+@app.errorhandler(404)
+def not_found_error(error):
+    return render_template('404.html'), 404
+
+@app.errorhandler(500)
+def internal_error(error):
+    db.session.rollback()
+    return render_template('500.html'), 500
+
+@app.route('/reset-password-request', methods=['GET', 'POST'])
+def reset_password_request():
+    if current_user.is_authenticated:
+        return redirect(url_for('dashboard'))
+        
+    form = ResetPasswordRequestForm()
+    if form.validate_on_submit():
+        try:
+            user = User.query.filter_by(email=form.email.data).first()
+            if user:
+                token = secrets.token_urlsafe(32)
+                reset_token = PasswordReset(
+                    user_id=user.id,
+                    token=token
+                )
+                db.session.add(reset_token)
+                db.session.commit()
+                reset_url = url_for('reset_password', token=token, _external=True)
+
+                html_body = f'''
+                <html>
+                <body style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
+                    <div style="max-width: 600px; margin: 0 auto; background: #f9f9f9; padding: 20px; border-radius: 10px;">
+                        <h2 style="color: #45ffca; text-align: center;">Pump Chest Password Reset</h2>
+                        <p style="margin: 20px 0;">Hello,</p>
+                        <p>You have requested to reset your password for your Pump Chest account.</p>
+                        <p>Please click the button below to reset your password:</p>
+                        <div style="text-align: center; margin: 30px 0;">
+                            <a href="{reset_url}" 
+                               style="background: #45ffca; 
+                                      color: #000; 
+                                      padding: 12px 25px; 
+                                      text-decoration: none; 
+                                      border-radius: 5px; 
+                                      display: inline-block;">
+                                Reset Password
+                            </a>
+                        </div>
+                        <p>If you did not request this password reset, please ignore this email.</p>
+                        <p>This link will expire in 24 hours.</p>
+                        <hr style="border: 1px solid #eee; margin: 20px 0;">
+                        <p style="font-size: 12px; color: #666; text-align: center;">
+                            &copy; 2025 Pump Chest. All rights reserved.
+                        </p>
+                    </div>
+                </body>
+                </html>
+                '''
+
+                msg = Message(
+                    'Password Reset Request - Pump Chest',
+                    sender=('Pump Chest', app.config['MAIL_USERNAME']),
+                    recipients=[user.email]
+                )
+
+                msg.body = f'To reset your password, visit the following link: {reset_url}'
+                msg.html = html_body
+                mail.send(msg)
+                print(f"Password reset email sent to: {user.email}")
+
+                flash('Password reset instructions have been sent to your email')
+                return redirect(url_for('login'))
+            else:
+                flash('If an account exists with that email, you will receive reset instructions')
+                return redirect(url_for('login'))
+
+        except Exception as e:
+            print(f"Error sending password reset email: {str(e)}")
+            db.session.rollback()
+            flash('An error occurred while sending the reset email. Please try again.')
+
+    return render_template('reset_request.html', form=form)

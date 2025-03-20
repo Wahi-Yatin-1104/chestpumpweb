@@ -1,5 +1,4 @@
 document.addEventListener('DOMContentLoaded', () => {
-    // Remove loading screen
     const loading = document.querySelector('.loading');
     if (loading) {
         loading.style.opacity = '0';
@@ -10,15 +9,12 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function initializeAnimations() {
-    // Add show class to initial visible elements
     const elements = document.querySelectorAll('[class*="animate-"]');
     elements.forEach(element => {
         if (isElementInViewport(element)) {
             element.classList.add('show');
         }
     });
-
-    // Initialize intersection observer
     const observer = new IntersectionObserver((entries) => {
         entries.forEach(entry => {
             if (entry.isIntersecting) {
@@ -46,7 +42,6 @@ function isElementInViewport(el) {
     );
 }
 
-// Smooth scrolling utility
 function smoothScroll(target, duration) {
     const targetPosition = target.getBoundingClientRect().top;
     const startPosition = window.pageYOffset;
@@ -67,6 +62,5 @@ function smoothScroll(target, duration) {
         t--;
         return -c / 2 * (t * (t - 2) - 1) + b;
     }
-
     requestAnimationFrame(animation);
 }

@@ -281,11 +281,208 @@
     gap: 1.5rem;
 }
 
+.input-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+}
+
+.input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.input-group label {
+    color: #666;
+    font-size: 0.9rem;
+}
+
+.input-with-icon {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.input-with-icon i {
+    position: absolute;
+    left: 1rem;
+    color: var(--primary);
+    font-size: 1.2rem;
+}
+
+.input-with-icon input {
+    width: 100%;
+    padding: 0.75rem 1rem 0.75rem 3rem;
+    background: rgba(17, 17, 17, 0.7);
+    border: 1px solid #333;
+    border-radius: 8px;
+    color: var(--text);
+    font-size: 1rem;
+    transition: all 0.3s ease;
+}
+
+.input-with-icon input:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 2px rgba(69,255,202,0.1);
+}
+
 .bmi-result {
     background: rgba(17, 17, 17, 0.7);
     border-radius: 10px;
     padding: 1.5rem;
     text-align: center;
+}
+
+.result-number {
+    margin-bottom: 1rem;
+}
+
+.result-number .label {
+    display: block;
+    color: #666;
+    font-size: 0.9rem;
+    margin-bottom: 0.5rem;
+}
+
+.result-number .value {
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: var(--primary);
+}
+
+.result-category .label {
+    display: block;
+    color: #666;
+    font-size: 0.9rem;
+    margin-bottom: 0.5rem;
+}
+
+.result-category .category {
+    font-size: 1.2rem;
+    font-weight: 600;
+}
+
+.category.underweight { color: #3b82f6; }
+.category.normal { color: #22c55e; }
+.category.overweight { color: #f59e0b; }
+.category.obese { color: #ef4444; }
+
+.nutrition-overview {
+    background: var(--card);
+    border-radius: 15px;
+    padding: 1.5rem;
+    border: 1px solid #222;
+}
+
+.nutrition-stats {
+    display: grid;
+    gap: 1.5rem;
+}
+
+.macro-summary {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 1.5rem;
+    align-items: center;
+}
+
+.progress-ring {
+    position: relative;
+    width: 200px;
+    height: 200px;
+    margin: 0 auto;
+}
+
+.progress-ring svg {
+    transform: rotate(-90deg);
+}
+
+.progress-ring-circle-bg {
+    fill: none;
+    stroke: rgba(69, 255, 202, 0.1);
+    stroke-width: 8px;
+}
+
+.progress-ring-circle {
+    fill: none;
+    stroke: var(--primary);
+    stroke-width: 8px;
+    stroke-dasharray: 339.292;
+    transition: stroke-dashoffset 0.5s;
+}
+
+.progress-content {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    width: 80%;
+}
+
+.progress-content span {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--primary);
+}
+
+.progress-content small {
+    color: #666;
+    font-size: 1.2rem;
+    display: block;
+    margin-top: 0.25rem;
+}
+
+.progress-content .label {
+    font-size: 0.8rem;
+    color: #666;
+    margin-top: 0.25rem;
+}
+
+.macros-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+}
+
+.macro-item {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem;
+    background: rgba(17, 17, 17, 0.7);
+    border-radius: 10px;
+}
+
+.macro-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+}
+
+.macro-icon.protein { background: rgba(239, 68, 68, 0.1); color: #ef4444; }
+.macro-icon.carbs { background: rgba(34, 197, 94, 0.1); color: #22c55e; }
+.macro-icon.fats { background: rgba(234, 179, 8, 0.1); color: #eab308; }
+
+.macro-data {
+    display: flex;
+    flex-direction: column;
+}
+
+.macro-data .value {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--text);
+}
+
+.macro-data .label {
+    font-size: 0.8rem;
+    color: #666;
 }
 
 .meal-log {
@@ -319,4 +516,158 @@
     border-radius: 8px;
     font-size: 0.8rem;
     text-transform: capitalize;
+}
+
+.meal-type.breakfast { background: rgba(59, 130, 246, 0.1); color: #3b82f6; }
+.meal-type.lunch { background: rgba(34, 197, 94, 0.1); color: #22c55e; }
+.meal-type.dinner { background: rgba(239, 68, 68, 0.1); color: #ef4444; }
+.meal-type.snack { background: rgba(234, 179, 8, 0.1); color: #eab308; }
+
+.meal-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.meal-name {
+    color: var(--text);
+    font-weight: 500;
+}
+
+.meal-macros {
+    font-size: 0.8rem;
+    color: #666;
+}
+
+.meal-calories {
+    font-weight: 600;
+    color: var(--primary);
+}
+
+.macros-input {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.calorie-goal-settings {
+    margin-bottom: 1.5rem;
+    padding: 1rem;
+    background: rgba(17, 17, 17, 0.7);
+    border-radius: 10px;
+}
+
+.setting-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+}
+
+.setting-header h4 {
+    color: var(--text);
+    margin: 0;
+}
+
+.btn-small {
+    padding: 0.5rem;
+    font-size: 1rem;
+}
+
+.current-goal {
+    color: var(--primary);
+    font-size: 1.2rem;
+    font-weight: 600;
+}
+
+.input-help {
+    display: block;
+    color: #666;
+    font-size: 0.8rem;
+    margin-top: 0.25rem;
+}
+
+.progress-ring-circle {
+    fill: none;
+    stroke: var(--primary);
+    stroke-width: 8px;
+    stroke-linecap: round;
+    transition: stroke-dashoffset 0.5s ease;
+}
+
+.progress-ring-circle-bg {
+    fill: none;
+    stroke: rgba(69, 255, 202, 0.1);
+    stroke-width: 8px;
+}
+
+.calendar-day.has-workout {
+    background: rgba(69, 255, 202, 0.1);
+    border: 1px solid var(--primary);
+}
+
+.workout-indicator {
+    font-size: 0.8rem;
+    color: var(--primary);
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.workout-indicator i {
+    font-size: 1rem;
+}
+
+.chart-card {
+    background: #111;
+    border-radius: 15px;
+    padding: 1.5rem;
+    border: 1px solid #222;
+    height: 400px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+    position: relative;
+}
+
+.chart-card h3 {
+    color: #fff;
+    font-size: 1.4rem;
+    margin-bottom: 1rem;
+    padding-left: 0.5rem;
+    font-weight: 600;
+}
+
+#workoutChart {
+    width: 100% !important;
+    height: 320px !important;
+    display: block;
+}
+
+.chart-error {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    width: 80%;
+    color: #999;
+}
+
+.chart-error .error-icon {
+    font-size: 2.5rem;
+    color: #ff4d4d;
+    margin-bottom: 1rem;
+}
+
+.chart-error p {
+    margin-bottom: 0.5rem;
+    line-height: 1.4;
+}
+
+.progress-content #currentCalories {
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: var(--primary);
+    display: block;
+    line-height: 1.2;
 }
