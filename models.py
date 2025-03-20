@@ -51,3 +51,53 @@ class OneRepMax(db.Model):
             'estimated_one_rep_max': self.estimated_one_rep_max,
             'date': self.date.strftime('%Y-%m-%d %H:%M:%S')
         }
+    
+class MealLog(db.Model):
+    __tablename__ = 'meal_log'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    date = db.Column(db.DateTime, default=datetime.utcnow)
+    meal_type = db.Column(db.String(20), nullable=False)
+    food_name = db.Column(db.String(100), nullable=False)
+    calories = db.Column(db.Float, nullable=False)
+    proteins = db.Column(db.Float, default=0)
+    carbs = db.Column(db.Float, default=0)
+    fats = db.Column(db.Float, default=0)
+    
+    user = db.relationship('User', backref=db.backref('meal_logs', lazy=True))
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'date': self.date.strftime('%Y-%m-%d %H:%M:%S'),
+            'meal_type': self.meal_type,
+            'food_name': self.food_name,
+            'calories': float(self.calories),
+            'proteins': float(self.proteins) if self.proteins is not None else None,
+            'carbs': float(self.carbs) if self.carbs is not None else None,
+            'fats': float(self.fats) if self.fats is not None else None
+        }
+    
+class WorkoutSession(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    date = db.Column(db.DateTime, default=datetime.utcnow)
+    duration = db.Column(db.Integer, default=0)
+    calories_burned = db.Column(db.Float, default=0.0)
+    avg_heart_rate = db.Column(db.Float, default=0.0)
+    exercise_data = db.Column(db.JSON, default=lambda: {})
+    is_completed = db.Column(db.Boolean, default=False)
+    
+    user = db.relationship('User', backref='workout_sessions')
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'date': self.date.isoformat(),
+            'duration': self.duration,
+            'calories_burned': self.calories_burned,
+            'avg_heart_rate': self.avg_heart_rate,
+            'exercise_data': self.exercise_data,
+            'is_completed': self.is_completed
+        }

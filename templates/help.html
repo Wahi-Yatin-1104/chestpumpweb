@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Help Center - Pump Chest</title>
+    <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+	<nav class="nav-container">
+	    <a href="/" class="logo">Pump <span>Chest</span></a>
+	    <div class="nav-btns">
+	        {% if current_user.is_authenticated %}
+	            <a href="/dashboard" class="btn outline">Dashboard</a>
+	            <a href="/logout" class="btn outline">Logout</a>
+	        {% else %}
+	            <a href="/login" class="btn outline">Login</a>
+	            <a href="/register" class="btn primary">Sign Up</a>
+	        {% endif %}
+	    </div>
+	</nav>
+
+    <section style="padding: 8rem 5% 4rem; min-height: 100vh; background: var(--bg);">
+        <div class="container">
+            <h1 style="color: var(--primary); font-size: 3rem; margin-bottom: 2rem;">Help Center</h1>
+            
+            <div style="max-width: 800px; margin: 0 auto; color: var(--text);">
+                <div class="faq-section">
+                    <h2 style="color: var(--primary); margin-bottom: 1.5rem;">Frequently Asked Questions</h2>
+                    
+                    <div class="faq-item" style="margin-bottom: 1.5rem; padding: 1rem; background: var(--card); border-radius: 10px;">
+                        <h3 style="color: var(--primary); margin-bottom: 0.5rem;">How does form detection work?</h3>
+                        <p>Our AI uses computer vision to analyze your exercise form in real-time, providing instant feedback.</p>
+                    </div>
+                    
+                    <div class="faq-item" style="margin-bottom: 1.5rem; padding: 1rem; background: var(--card); border-radius: 10px;">
+                        <h3 style="color: var(--primary); margin-bottom: 0.5rem;">Can I connect a heart rate monitor?</h3>
+                        <p>Yes! Pump Chest supports Bluetooth heart rate monitors for real-time tracking.</p>
+                    </div>
+                    
+                    <div class="faq-item" style="margin-bottom: 1.5rem; padding: 1rem; background: var(--card); border-radius: 10px;">
+                        <h3 style="color: var(--primary); margin-bottom: 0.5rem;">How accurate is the BMI tracking?</h3>
+                        <p>Our BMI tracking uses standard medical calculations and updates with each new measurement.</p>
+                    </div>
+                </div>
+                
+                <div style="text-align: center; margin-top: 2rem;">
+                    <a href="/contact" class="btn primary">Contact Support</a>
+                </div>
+            </div>
+        </div>
+    </section>
+</body>
+</html>

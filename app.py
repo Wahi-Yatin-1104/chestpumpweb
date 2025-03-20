@@ -1400,3 +1400,153 @@ def add_meal():
             'success': False,
             'message': f'Failed to add meal: {str(e)}'
         }), 500
+    
+@app.route('/api/export-data', methods=['GET'])
+@login_required
+def export_data():
+    try:
+        format_type = request.args.get('format', 'json')
+        date_from = request.args.get('from')
+        date_to = request.args.get('to')
+        from_date = datetime.strptime(date_from, '%Y-%m-%d') if date_from else None
+        to_date = datetime.strptime(date_to, '%Y-%m-%d') if date_to else None
+
+        filters = [WorkoutSession.user_id == current_user.id, WorkoutSession.is_completed == True]
+        if from_date:
+            filters.append(WorkoutSession.date >= from_date)
+        if to_date:
+            filters.append(WorkoutSession.date <= to_date)
+
+        workouts = WorkoutSession.query.filter(*filters).order_by(WorkoutSession.date).all()
+
+        bmi_history = BMIHistory.query.filter(
+            BMIHistory.user_id == current_user.id
+        ).order_by(BMIHistory.date).all()
+
+        orm_history = OneRepMax.query.filter(
+            OneRepMax.user_id == current_user.id
+        ).order_by(OneRepMax.date).all()
+
+        export_data = {
+            'user': {
+                'name': current_user.name,
+                'email': current_user.email,
+                'profile': {
+                    'age': current_user.profile.age if current_user.profile else None,
+                    'height': current_user.profile.height if current_user.profile else None,
+                    'weight': current_user.profile.weight if current_user.profile else None,
+                    'fitness_level': current_user.profile.fitness_level if current_user.profile else None,
+                    'goals': current_user.profile.goals if current_user.profile else None
+                },
+                'export_date': datetime.utcnow().isoformat()
+            },
+            'workouts': [workout.to_dict() for workout in workouts],
+            'bmi_history': [bmi.to_dict() for bmi in bmi_history],
+            'one_rep_max': [orm.to_dict() for orm in orm_history]
+        }
+
+        if format_type == 'json':
+            response = jsonify(export_data)
+            response.headers['Content-Disposition'] = f'attachment; filename=pump_chest_data_{current_user.id}.json'
+            return response
+            
+        elif format_type == 'csv':
+            output = io.StringIO()
+            csv_writer = csv.writer(output)
+
+            csv_writer.writerow(['User Data'])
+            csv_writer.writerow(['Name', 'Email', 'Age', 'Height', 'Weight', 'Fitness Level'])
+            csv_writer.writerow([
+                current_user.name,
+                current_user.email,
+                current_user.profile.age if current_user.profile else '',
+                current_user.profile.height if current_user.profile else '',
+                current_user.profile.weight if current_user.profile else '',
+                current_user.profile.fitness_level if current_user.profile else ''
+            ])
+            csv_writer.writerow([])
+            csv_writer.writerow(['Workout History'])
+            csv_writer.writerow(['Date', 'Duration (min)', 'Calories Burned', 'Exercise Reps'])
+            for workout in workouts:
+                csv_writer.writerow([
+                    workout.date.strftime('%Y-%m-%d %H:%M'),
+                    round(workout.duration / 60) if workout.duration else 0,
+                    round(workout.calories_burned, 1) if workout.calories_burned else 0,
+                    ', '.join([f"{ex}: {reps}" for ex, reps in workout.exercise_data.items() if reps > 0])
+                ])
+
+            response = make_response(output.getvalue())
+            response.headers['Content-Disposition'] = f'attachment; filename=pump_chest_data_{current_user.id}.csv'
+            response.headers['Content-Type'] = 'text/csv'
+            return response
+            
+        elif format_type == 'pdf':
+            return jsonify({'error': 'PDF format not yet supported'}), 400
+        
+        else:
+            return jsonify({'error': 'Unsupported format requested'}), 400
+            
+    except Exception as e:
+        print(f"Error exporting data: {e}")
+        return jsonify({'error': 'Failed to export data'}), 500
+
+@app.route('/api/share-workout/<int:workout_id>', methods=['POST'])
+@login_required
+def share_workout(workout_id):
+    try:
+        workout = WorkoutSession.query.get(workout_id)
+        if not workout or workout.user_id != current_user.id:
+            return jsonify({'error': 'Workout not found'}), 404
+
+        token = secrets.token_urlsafe(16)
+        expires_days = request.json.get('expires', 7)
+        
+        app.shared_workouts = getattr(app, 'shared_workouts', {})
+        app.shared_workouts[token] = {
+            'workout_id': workout_id,
+            'expires': datetime.utcnow() + timedelta(days=expires_days)
+        }
+
+        share_url = url_for('view_shared_workout', token=token, _external=True)
+        
+        return jsonify({
+            'success': True,
+            'share_url': share_url,
+            'expires': (datetime.utcnow() + timedelta(days=expires_days)).isoformat()
+        })
+        
+    except Exception as e:
+        print(f"Error sharing workout: {e}")
+        return jsonify({'error': 'Failed to share workout'}), 500
+
+@app.route('/shared-workout/<token>')
+def view_shared_workout(token):
+    app.shared_workouts = getattr(app, 'shared_workouts', {})
+
+    if token not in app.shared_workouts:
+        return render_template('404.html', message="Shared workout link not found or expired")
+    
+    share_data = app.shared_workouts[token]
+    if share_data['expires'] < datetime.utcnow():
+        return render_template('404.html', message="Shared workout link has expired")
+
+    workout = WorkoutSession.query.get(share_data['workout_id'])
+    if not workout:
+        return render_template('404.html', message="Workout not found")
+
+    user = User.query.get(workout.user_id)
+    
+    return render_template('shared_workout.html', workout=workout, user=user)
+
+@app.route('/export-data')
+@login_required
+def export_data_page():
+    return render_template('export_data.html')
+
+if __name__ == '__main__':
+    with app.app_context():
+        try:
+            db.create_all()
+        except Exception as e:
+            print(f"Database initialization error: {e}")
+    socketio.run(app, debug=True)

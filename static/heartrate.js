@@ -1,42 +1,53 @@
-class PolarH10 {
-    constructor() {
-        this.device = null;
-        this.server = null;
-        this.service = null;
-        this.characteristic = null;
-    }
+const socket = io();
 
-    async connect() {
-        try {
-            this.device = await navigator.bluetooth.requestDevice({
-                filters: [{ services: ['heart_rate'] }],
-                optionalServices: ['battery_service']
-            });
+let isExercising = false;
 
-            this.server = await this.device.gatt.connect();
-            this.service = await this.server.getPrimaryService('heart_rate');
-            this.characteristic = await this.service.getCharacteristic('heart_rate_measurement');
-            
-            await this.startNotifications();
-        } catch (error) {
-            console.error('Connection failed:', error);
-        }
-    }
+function changeMode(mode) {
+    fetch(`/workout/change_mode/${mode}`);
+}
 
-    async startNotifications() {
-        await this.characteristic.startNotifications();
-        this.characteristic.addEventListener('characteristicvaluechanged', this.handleHeartRate);
+function toggleExercise() {
+    const button = document.getElementById('startStop');
+    if (!isExercising) {
+        fetch('/workout/start');
+        button.textContent = 'Stop';
+        button.classList.replace('start', 'stop');
+    } else {
+        fetch('/workout/stop');
+        button.textContent = 'Start';
+        button.classList.replace('stop', 'start');
     }
+    isExercising = !isExercising;
+}
 
-    handleHeartRate(event) {
-        const value = event.target.value;
-        const heartRate = value.getUint8(1);
-        document.getElementById('heart-rate').textContent = heartRate;
-    }
+async function connectHR() {
+    try {
+        const device = await navigator.bluetooth.requestDevice({
+            filters: [{ services: ['heart_rate'] }]
+        });
+        const server = await device.gatt.connect();
+        const service = await server.getPrimaryService('heart_rate');
+        const characteristic = await service.getCharacteristic('heart_rate_measurement');
 
-    disconnect() {
-        if (this.device && this.device.gatt.connected) {
-            this.device.gatt.disconnect();
-        }
+        await characteristic.startNotifications();
+        characteristic.addEventListener('characteristicvaluechanged', (event) => {
+            const heartRate = event.target.value.getUint8(1);
+            document.getElementById('heartRate').textContent = heartRate;
+            socket.emit('send_heart_rate', { heartRate, time: new Date().toLocaleTimeString() });
+        });
+    } catch (error) {
+        console.error('Failed to connect to HR monitor:', error);
     }
+}
+
+socket.on('update_heart_rate', (data) => {
+    document.getElementById('heartRate').textContent = data.heartRate;
+    document.getElementById('heartRateZone').textContent = getHeartRateZone(data.heartRate);
+});
+
+function getHeartRateZone(bpm) {
+    if (bpm < 100) return 'Resting';
+    if (bpm < 140) return 'Fat Burn';
+    if (bpm < 170) return 'Cardio';
+    return 'Peak';
 }
