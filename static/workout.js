@@ -4,16 +4,12 @@ let heartRateChart;
 let workoutStartTime = null;
 let elapsedSeconds = 0;
 let timerInterval = null;
-const weightedExercises = ["dl", "fs", "br", "op", "cu", "bp"];
-let currentWeight = 0;
-let currentReps = 0;
-let ormChart = null;
-let historyData = [];
 
 function startTimer() {
     if (timerInterval) {
         clearInterval(timerInterval);
     }
+
     elapsedSeconds = 0;
     document.getElementById('time').textContent = '00:00';
     timerInterval = setInterval(() => {
@@ -128,6 +124,7 @@ function toggleExercise() {
                     button.classList.add('active');
                     elapsedSeconds = 0;
                     document.getElementById('time').textContent = '00:00';
+
                     timerInterval = setInterval(() => {
                         elapsedSeconds++;
                         const minutes = Math.floor(elapsedSeconds / 60);
@@ -145,6 +142,7 @@ function toggleExercise() {
             });
     } else {
         console.log('Stopping workout, elapsed time:', elapsedSeconds);
+
         if (timerInterval) {
             clearInterval(timerInterval);
             timerInterval = null;
@@ -173,6 +171,7 @@ function updateTimer() {
         elapsedSeconds = Math.floor((Date.now() - workoutStartTime) / 1000);
         const minutes = Math.floor(elapsedSeconds / 60);
         const seconds = elapsedSeconds % 60;
+
         document.getElementById('time').textContent = 
             `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
         
@@ -180,47 +179,6 @@ function updateTimer() {
         
         requestAnimationFrame(updateTimer);
     }
-}
-
-function finishWorkout() {
-    const modal = document.getElementById('workoutModal');
-    const totalReps = parseInt(document.getElementById('reps').textContent) || 0;
-    const calories = parseFloat(document.getElementById('calories').textContent) || 0;
-    const durationSeconds = elapsedSeconds;
-    console.log(`Finishing workout with exact duration: ${durationSeconds} seconds`);
-    const minutes = Math.floor(durationSeconds / 60);
-    const seconds = durationSeconds % 60;
-    const formattedDuration = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-    document.getElementById('modalReps').textContent = totalReps;
-    document.getElementById('modalCalories').textContent = calories.toFixed(1);
-    document.getElementById('modalDuration').textContent = formattedDuration;
-    
-    fetch('/workout/finish', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-            total_reps: totalReps,
-            calories_burned: calories,
-            duration: durationSeconds,
-            is_completed: true
-        })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            console.log('Workout saved with duration:', durationSeconds);
-            sessionStorage.setItem('forceRefresh', 'true');
-            modal.style.display = "block";
-        } else {
-            alert('Failed to save workout: ' + (data.message || 'Unknown error'));
-        }
-    })
-    .catch(error => {
-        console.error('Error saving workout:', error);
-        alert('Error saving workout: ' + error);
-    });
 }
 
 function startNewWorkout() {
@@ -333,16 +291,6 @@ function changeMode(newMode) {
         .then(data => {
             if (data.success) {
                 document.getElementById('mode').textContent = newMode.toUpperCase();
-                const modeBadge = document.getElementById('currentMode');
-                if (weightedExercises.includes(newMode)) {
-                    modeBadge.classList.add('weighted');
-                    showWeightInput();
-                } else {
-                    modeBadge.classList.remove('weighted');
-                    hideWeightInput();
-                }
-                
-                currentReps = 0;
                 document.querySelectorAll('.exercise-btn').forEach(btn => {
                     btn.classList.remove('active');
                     if (btn.getAttribute('data-mode') === newMode) {
@@ -354,19 +302,25 @@ function changeMode(newMode) {
         .catch(error => console.error('Error changing mode:', error));
 }
 
+const weightedExercises = ["dl", "fs", "br", "op", "cu", "bp"];
+let currentWeight = 0;
+let currentReps = 0;
+let ormChart = null;
+let historyData = [];
+
 document.addEventListener('DOMContentLoaded', () => {
     const savedWeight = sessionStorage.getItem('currentWeight');
     if (savedWeight) {
         currentWeight = parseFloat(savedWeight);
     }
-    
+
     document.querySelectorAll('.exercise-btn').forEach(btn => {
         const mode = btn.getAttribute('data-mode');
         if (weightedExercises.includes(mode)) {
             btn.classList.add('weighted');
         }
     });
-    
+
     document.getElementById('ormForm').addEventListener('submit', function(event) {
         event.preventDefault();
         const weight = parseFloat(document.getElementById('ormWeight').value);
@@ -375,7 +329,7 @@ document.addEventListener('DOMContentLoaded', () => {
             alert('Please enter a valid weight');
             return;
         }
-        
+
         const reps = currentReps;
         if (reps <= 0) {
             alert('You need to complete at least 1 rep first');
@@ -398,13 +352,40 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
+function changeMode(newMode) {
+    fetch(`/workout/change_mode/${newMode}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                document.getElementById('mode').textContent = newMode.toUpperCase();
+                const modeBadge = document.getElementById('currentMode');
+                if (weightedExercises.includes(newMode)) {
+                    modeBadge.classList.add('weighted');
+                    showWeightInput();
+                } else {
+                    modeBadge.classList.remove('weighted');
+                    hideWeightInput();
+                }
+
+                currentReps = 0;
+                document.querySelectorAll('.exercise-btn').forEach(btn => {
+                    btn.classList.remove('active');
+                    if (btn.getAttribute('data-mode') === newMode) {
+                        btn.classList.add('active');
+                    }
+                });
+            }
+        })
+        .catch(error => console.error('Error changing mode:', error));
+}
+
 socket.on('update_stats', (data) => {
     document.getElementById('mode').textContent = data.mode.toUpperCase();
     document.getElementById('reps').textContent = data.reps;
     document.getElementById('calories').textContent = data.calories.toFixed(1);
     currentReps = data.reps;
+    
     const formStatus = document.getElementById('formStatus');
-
     if (data.form_issues && data.form_issues.length > 0) {
         formStatus.textContent = data.form_issues.join(' & ');
         formStatus.style.color = '#ff4444';
@@ -421,8 +402,8 @@ socket.on('update_stats', (data) => {
         formStatus.style.color = '#22c55e';
         formStatus.parentElement.classList.add('good');
         formStatus.parentElement.classList.remove('issues');
-        const dialog = document.getElementById('weightRecommendationDialog');
 
+        const dialog = document.getElementById('weightRecommendationDialog');
         if (dialog) {
             dialog.remove();
         }
@@ -433,7 +414,7 @@ function showWeightRecommendation(recommendation) {
     const dialog = document.createElement('div');
     dialog.id = 'weightRecommendationDialog';
     dialog.className = 'weight-recommendation-dialog';
-    
+
     dialog.innerHTML = `
         <div class="weight-dialog-content">
             <div class="weight-dialog-icon">
@@ -448,12 +429,13 @@ function showWeightRecommendation(recommendation) {
             </button>
         </div>
     `;
-    
+
     document.body.appendChild(dialog);
+
     setTimeout(() => {
         dialog.classList.add('show');
     }, 10);
-    
+
     const closeBtn = dialog.querySelector('.weight-dialog-close');
     closeBtn.addEventListener('click', () => {
         dialog.classList.remove('show');
@@ -461,7 +443,7 @@ function showWeightRecommendation(recommendation) {
             dialog.remove();
         }, 300);
     });
-    
+
     setTimeout(() => {
         if (dialog.parentNode) {
             dialog.classList.remove('show');
@@ -484,9 +466,10 @@ function showWeightInput() {
         <input type="number" id="exerciseWeight" min="0" step="2.5" value="${currentWeight}" onChange="updateWeight(this.value)">
         <span class="weight-input-unit">lbs</span>
     `;
-    
+e
     const modeBadge = document.getElementById('currentMode');
     modeBadge.parentNode.insertBefore(weightInput, modeBadge.nextSibling);
+
     document.getElementById('exerciseWeight').addEventListener('change', function() {
         updateWeight(this.value);
     });
@@ -502,6 +485,7 @@ function hideWeightInput() {
 function updateWeight(weight) {
     currentWeight = parseFloat(weight);
     sessionStorage.setItem('currentWeight', currentWeight);
+
     fetch('/api/update_exercise_weight', {
         method: 'POST',
         headers: {
@@ -518,16 +502,17 @@ function calculateBrzycki(weight, reps) {
 
 function calculateOneRepMax() {
     const currentExercise = document.getElementById('mode').textContent.toLowerCase();
+
     if (!weightedExercises.includes(currentExercise.toLowerCase())) {
         alert('One Rep Max calculation is only available for weighted exercises.');
         return;
     }
-    
+
     if (currentReps <= 0) {
         alert('You need to complete at least 1 rep before calculating One Rep Max.');
         return;
     }
-    
+
     openModal('oneRepMaxModal');
     document.getElementById('ormWeight').value = currentWeight;
 }
@@ -551,8 +536,10 @@ async function saveOneRepMax(weight, reps, oneRepMax) {
         });
         
         const data = await response.json();
+        
         if (data.success) {
             alert(`Your one rep max of ${Math.round(oneRepMax)} lbs has been saved!`);
+
             setTimeout(() => {
                 closeModal('oneRepMaxModal');
             }, 2000);
@@ -564,11 +551,75 @@ async function saveOneRepMax(weight, reps, oneRepMax) {
         alert('An error occurred while saving your one rep max');
     }
 }
-
+s
 function openModal(modalId) {
     document.getElementById(modalId).style.display = 'block';
 }
 
 function closeModal(modalId) {
     document.getElementById(modalId).style.display = 'none';
+}
+
+function finishWorkout() {
+    const modal = document.getElementById('workoutModal');
+    const totalReps = parseInt(document.getElementById('reps').textContent) || 0;
+    const calories = parseFloat(document.getElementById('calories').textContent) || 0;
+    const durationSeconds = elapsedSeconds;
+    console.log(`Finishing workout with exact duration: ${durationSeconds} seconds`);
+    const minutes = Math.floor(durationSeconds / 60);
+    const seconds = durationSeconds % 60;
+    const formattedDuration = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    document.getElementById('modalReps').textContent = totalReps;
+    document.getElementById('modalCalories').textContent = calories.toFixed(1);
+    document.getElementById('modalDuration').textContent = formattedDuration;
+
+    fetch('/workout/finish', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            total_reps: totalReps,
+            calories_burned: calories,
+            duration: durationSeconds,
+            is_completed: true
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            console.log('Workout saved with duration:', durationSeconds);
+            sessionStorage.setItem('forceRefresh', 'true');
+            modal.style.display = "block";
+        } else {
+            alert('Failed to save workout: ' + (data.message || 'Unknown error'));
+        }
+    })
+    .catch(error => {
+        console.error('Error saving workout:', error);
+        alert('Error saving workout: ' + error);
+    });
+}
+
+document.getElementById('refresh-stats-btn').addEventListener('click', function() {
+    fetch('/api/dashboard-stats-raw-sql')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                document.getElementById('workouts-count').textContent = data.stats.workouts_count;
+                document.getElementById('total-calories').textContent = data.stats.total_calories.toFixed(1);
+                document.getElementById('total-duration').textContent = data.stats.total_duration;
+            } else {
+                alert('Failed to refresh stats: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error refreshing stats:', error);
+            alert('Error refreshing stats');
+        });
+});
+
+function goToDashboard() {
+    sessionStorage.setItem('forceRefresh', 'true');
+    window.location.href = '/dashboard?t=' + Date.now();
 }

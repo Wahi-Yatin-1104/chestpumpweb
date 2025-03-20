@@ -77,12 +77,44 @@
                     <i class='bx bx-refresh'></i>
                     Crunches
                 </button>
+                <button class="control-btn exercise-btn" onclick="changeMode('mc')" data-mode="mc">
+                    <i class='bx bx-run'></i>
+                    Mountain Climbers
+                </button>
+                <button class="control-btn exercise-btn" onclick="changeMode('jj')" data-mode="jj">
+                    <i class='bx bx-star'></i>
+                    Jumping Jacks
+                </button>
+                <button class="control-btn exercise-btn" onclick="changeMode('bup')" data-mode="bup">
+                    <i class='bx bx-bomb'></i>
+                    Burpees
+                </button>
             </div>
 
             <div class="workout-controls weights-exercises" style="display: none;">
                 <button class="control-btn exercise-btn" onclick="changeMode('cu')" data-mode="cu">
                     <i class='bx bx-dumbbell'></i>
                     Bicep Curls
+                </button>
+                <button class="control-btn exercise-btn" onclick="changeMode('dl')" data-mode="dl">
+                    <i class='bx bx-dumbbell'></i>
+                    Deadlift
+                </button>
+                <button class="control-btn exercise-btn" onclick="changeMode('bp')" data-mode="bp">
+                    <i class='bx bx-dumbbell'></i>
+                    Bench Press
+                </button>
+                <button class="control-btn exercise-btn" onclick="changeMode('op')" data-mode="op">
+                    <i class='bx bx-up-arrow-alt'></i>
+                    Overhead Press
+                </button>
+                <button class="control-btn exercise-btn" onclick="changeMode('br')" data-mode="br">
+                    <i class='bx bx-dumbbell'></i>
+                    Bent Over Row
+                </button>
+                <button class="control-btn exercise-btn" onclick="changeMode('fs')" data-mode="fs">
+                    <i class='bx bx-dumbbell'></i>
+                    Front Squat
                 </button>
             </div>
 
@@ -141,12 +173,47 @@
                 </div>
             </div>
             <div class="modal-buttons">
-                <button onclick="window.location.href='/dashboard'" class="btn primary">Go to Dashboard</button>
+				<button onclick="goToDashboard()" class="btn primary">Go to Dashboard</button>
                 <button onclick="startNewWorkout()" class="btn outline">New Workout</button>
             </div>
         </div>
     </div>
 
     <script src="{{ url_for('static', filename='workout.js') }}"></script>
+
+	<div id="oneRepMaxModal" class="modal">
+	    <div class="modal-content">
+	        <div class="modal-header">
+	            <h3>Calculate One Rep Max</h3>
+	            <button class="modal-close" onclick="OneRepMax.closeModal()">
+	                <i class='bx bx-x'></i>
+	            </button>
+	        </div>
+	        
+	        <form id="ormForm">
+	            <div class="form-group">
+	                <label for="ormWeight">Weight Used (lbs)</label>
+	                <input type="number" id="ormWeight" min="1" step="2.5" required>
+	            </div>
+	            
+	            <div class="help-text">
+	                <p>Using your current rep count: <strong id="ormReps">0</strong></p>
+	            </div>
+	            
+	            <div id="ormResult" style="display: none;">
+	                <h4>Your Estimated One Rep Max</h4>
+	                <div class="orm-value"><span id="ormValue">0</span> lbs</div>
+	            </div>
+	            
+	            <button type="submit" class="btn primary">Calculate</button>
+	        </form>
+	    </div>
+	</div>
+
+	<div id="weightToastContainer"></div>
+
+	<link rel="stylesheet" href="{{ url_for('static', filename='one_rep_max.css') }}">
+	<script src="{{ url_for('static', filename='one_rep_max.js') }}"></script>
+
 </body>
 </html>
