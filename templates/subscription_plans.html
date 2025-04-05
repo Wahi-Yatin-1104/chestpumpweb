@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Subscription Plans - Pump Chest</title>
+    <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
+    <link rel="stylesheet" href="/static/styles.css">
+    <link rel="stylesheet" href="/static/subscription.css">
+</head>
+<body>
+    <nav class="nav-container">
+        <a href="/" class="logo">Pump <span>Chest</span></a>
+        <div class="nav-btns">
+            {% if current_user.is_authenticated %}
+                <a href="/dashboard" class="btn outline">Dashboard</a>
+                <a href="/logout" class="btn outline">Logout</a>
+            {% else %}
+                <a href="/login" class="btn outline">Login</a>
+                <a href="/register" class="btn primary">Sign Up</a>
+            {% endif %}
+        </div>
+    </nav>
+
+    <section class="subscription-container">
+        <div class="subscription-header">
+            <h1>Choose Your Plan</h1>
+            <p>Select the plan that best suits your fitness goals</p>
+        </div>
+
+        <div class="plans-grid">
+            <div class="plan-card">
+                <div class="plan-header">
+                    <h2>Basic</h2>
+                    <div class="price">$5<span>/month</span></div>
+                </div>
+                <ul class="plan-features">
+                    <li><i class='bx bx-check'></i> Form Detection</li>
+                    <li><i class='bx bx-check'></i> Basic Analytics</li>
+                    <li><i class='bx bx-check'></i> Exercise Library</li>
+                    <li><i class='bx bx-x'></i> Heart Rate Monitoring</li>
+                    <li><i class='bx bx-x'></i> Custom Workout Plans</li>
+                </ul>
+                <button class="btn primary" id="basicPlanBtn" onclick="selectPlan('price_basic_monthly')">
+                    Select Plan
+                </button>
+            </div>
+            
+            <div class="plan-card featured">
+                <div class="popular-tag">Most Popular</div>
+                <div class="plan-header">
+                    <h2>Premium</h2>
+                    <div class="price">$15<span>/month</span></div>
+                </div>
+                <ul class="plan-features">
+                    <li><i class='bx bx-check'></i> Advanced Form Analysis</li>
+                    <li><i class='bx bx-check'></i> Heart Rate Monitoring</li>
+                    <li><i class='bx bx-check'></i> Detailed Analytics</li>
+                    <li><i class='bx bx-check'></i> Custom Workout Plans</li>
+                    <li><i class='bx bx-check'></i> Priority Support</li>
+                </ul>
+                <button class="btn primary" id="premiumPlanBtn" onclick="selectPlan('price_premium_monthly')">
+                    Select Plan
+                </button>
+            </div>
+        </div>
+
+        <div class="comparison-table">
+            <h2>Feature Comparison</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Feature</th>
+                        <th>Basic</th>
+                        <th>Premium</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Exercise Tracking</td>
+                        <td><i class='bx bx-check'></i></td>
+                        <td><i class='bx bx-check'></i></td>
+                    </tr>
+                    <tr>
+                        <td>Form Detection</td>
+                        <td><i class='bx bx-check'></i> Basic</td>
+                        <td><i class='bx bx-check'></i> Advanced</td>
+                    </tr>
+                    <tr>
+                        <td>Analytics</td>
+                        <td><i class='bx bx-check'></i> Basic</td>
+                        <td><i class='bx bx-check'></i> Advanced</td>
+                    </tr>
+                    <tr>
+                        <td>Heart Rate Monitoring</td>
+                        <td><i class='bx bx-x'></i></td>
+                        <td><i class='bx bx-check'></i></td>
+                    </tr>
+                    <tr>
+                        <td>One Rep Max Tracking</td>
+                        <td><i class='bx bx-x'></i></td>
+                        <td><i class='bx bx-check'></i></td>
+                    </tr>
+                    <tr>
+                        <td>Custom Workout Plans</td>
+                        <td><i class='bx bx-x'></i></td>
+                        <td><i class='bx bx-check'></i></td>
+                    </tr>
+                    <tr>
+                        <td>Workout Export</td>
+                        <td><i class='bx bx-check'></i> Limited</td>
+                        <td><i class='bx bx-check'></i> Full</td>
+                    </tr>
+                    <tr>
+                        <td>Priority Support</td>
+                        <td><i class='bx bx-x'></i></td>
+                        <td><i class='bx bx-check'></i></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <script>
+document.getElementById('basicPlanBtn').onclick = function() {
+  selectPlan('price_1QotwkC7V1IsAcfzTj3oQWdT'); 
+};
+
+document.getElementById('premiumPlanBtn').onclick = function() {
+  selectPlan('price_1Qotx0C7V1IsAcfzDdAzenjQ'); 
+};
+    </script>
+</body>
+</html>

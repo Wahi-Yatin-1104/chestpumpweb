@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Subscription Confirmed - Pump Chest</title>
+    <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
+    <link rel="stylesheet" href="/static/styles.css">
+    <link rel="stylesheet" href="/static/subscription.css">
+</head>
+<body>
+    <nav class="nav-container">
+        <a href="/" class="logo">Pump <span>Chest</span></a>
+        <div class="nav-btns">
+            <a href="/dashboard" class="btn outline">Dashboard</a>
+            <a href="/logout" class="btn outline">Logout</a>
+        </div>
+    </nav>
+
+    <section class="subscription-container">
+        <div class="thank-you-container">
+            <div class="thank-you-icon">
+                <i class='bx bx-check-circle'></i>
+            </div>
+            <h1 class="thank-you-title">Thank You!</h1>
+            <p class="thank-you-message">Your subscription has been successfully activated. Get ready to take your fitness to the next level!</p>
+            
+            <div class="subscription-details">
+                <h3>Subscription Details</h3>
+                <div class="details-grid">
+                    <div class="detail-item">
+                        <label>Plan</label>
+                        <p>{{ current_user.subscription_tier|title }}</p>
+                    </div>
+                    <div class="detail-item">
+                        <label>Status</label>
+                        <p>Active</p>
+                    </div>
+                    <div class="detail-item">
+                        <label>Billing Cycle</label>
+                        <p>Monthly</p>
+                    </div>
+                    <div class="detail-item">
+                        <label>Next Billing Date</label>
+                        <p>{{ current_user.subscription.current_period_end.strftime('%B %d, %Y') }}</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="action-buttons">
+                <a href="/dashboard" class="btn primary">Go to Dashboard</a>
+                <a href="/subscription/manage" class="btn outline">Manage Subscription</a>
+            </div>
+        </div>
+    </section>
+</body>
+</html>

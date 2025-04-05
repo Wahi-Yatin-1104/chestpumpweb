@@ -17,9 +17,9 @@ from forms import ResetPasswordRequestForm, ResetPasswordForm
 import json
 from functools import wraps
 from sqlalchemy import func
-import csv
-import io
-from flask import make_response, send_file
+from subscription_middleware import premium_required
+from subscription_routes import subscription_bp
+from flask_cors import CORS
 
 # Load environment variables
 load_dotenv()
@@ -50,6 +50,10 @@ socketio = SocketIO(app)
 # Initialize MediaPipe
 mp_pose = mp.solutions.pose
 mp_draw = mp.solutions.drawing_utils
+
+app.register_blueprint(subscription_bp, url_prefix='/subscription')
+CORS(app)
+
 
 # Global variables for workout tracking
 mode = "sq"
