@@ -92,57 +92,17 @@ function initChart() {
     });
 }
 
-function changeMode(newMode) {
-    fetch(`/workout/change_mode/${newMode}`)
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                document.getElementById('mode').textContent = newMode.toUpperCase();
-                document.querySelectorAll('.exercise-btn').forEach(btn => {
-                    btn.classList.remove('active');
-                    if (btn.textContent.toLowerCase().includes(newMode)) {
-                        btn.classList.add('active');
-                    }
-                });
-            }
-        });
-}
-
 function toggleExercise() {
     const button = document.getElementById('startStop');
     const finishBtn = document.getElementById('finishWorkout');
     
     if (!workoutInProgress) {
-        fetch('/workout/start')
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    console.log('Workout started successfully');
-                    workoutStartTime = Date.now();
-                    workoutInProgress = true;
-                    button.innerHTML = '<i class="bx bx-stop"></i>Stop';
-                    button.classList.add('active');
-                    elapsedSeconds = 0;
-                    document.getElementById('time').textContent = '00:00';
-
-                    timerInterval = setInterval(() => {
-                        elapsedSeconds++;
-                        const minutes = Math.floor(elapsedSeconds / 60);
-                        const seconds = elapsedSeconds % 60;
-                        document.getElementById('time').textContent = 
-                            `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-                        
-                        console.log(`Timer: ${minutes}:${seconds} (${elapsedSeconds} seconds)`);
-                    }, 1000);
-                }
-            })
-            .catch(error => {
-                console.error('Error starting workout:', error);
-                alert('Error starting workout');
-            });
+        startCountdown(function() {
+            startWorkoutAfterCountdown();
+        });
+        
+        button.disabled = true;
     } else {
-        console.log('Stopping workout, elapsed time:', elapsedSeconds);
-
         if (timerInterval) {
             clearInterval(timerInterval);
             timerInterval = null;
@@ -152,19 +112,87 @@ function toggleExercise() {
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    console.log('Workout stopped successfully');
                     workoutInProgress = false;
                     button.innerHTML = '<i class="bx bx-play"></i>Start';
                     button.classList.remove('active');
                     finishBtn.style.display = 'block';
                 }
-            })
-            .catch(error => {
-                console.error('Error stopping workout:', error);
-                alert('Error stopping workout');
             });
     }
 }
+
+function startCountdown(callback) {
+    const overlay = document.getElementById('countdownOverlay');
+    const countdownText = document.getElementById('countdownText');
+    let count = 3;
+    
+    overlay.classList.add('active');
+    countdownText.textContent = count;
+    countdownText.classList.add('countdown-number');
+    
+
+    const countdownInterval = setInterval(() => {
+        count--;
+        
+        countdownText.classList.remove('countdown-number');
+        void countdownText.offsetWidth; 
+        if (count > 0) {
+            countdownText.textContent = count;
+            countdownText.classList.add('countdown-number');
+        } else if (count === 0) {
+            countdownText.textContent = "GO!";
+            countdownText.classList.add('countdown-go');
+        } else {
+            clearInterval(countdownInterval);
+            overlay.classList.remove('active');
+            
+            callback();
+        }
+    }, 1000);
+}
+
+function startWorkoutAfterCountdown() {
+    const button = document.getElementById('startStop');
+    const finishBtn = document.getElementById('finishWorkout');
+    
+    fetch('/workout/start')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                console.log('Workout started successfully');
+                workoutStartTime = Date.now();
+                workoutInProgress = true;
+                button.innerHTML = '<i class="bx bx-stop"></i>Stop';
+                button.classList.add('active');
+                button.disabled = false;
+                elapsedSeconds = 0;
+                
+                if (timerInterval) {
+                    clearInterval(timerInterval);
+                }
+                
+                timerInterval = setInterval(() => {
+                    elapsedSeconds = Math.floor((Date.now() - workoutStartTime) / 1000);
+                    const minutes = Math.floor(elapsedSeconds / 60);
+                    const seconds = elapsedSeconds % 60;
+                    
+                    document.getElementById('time').textContent = 
+                        `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+                }, 1000);
+                
+                finishBtn.style.display = 'none';
+            } else {
+                button.disabled = false;
+                alert('Failed to start workout. Please try again.');
+            }
+        })
+        .catch(error => {
+            console.error('Error starting workout:', error);
+            button.disabled = false;
+        });
+}
+
+
 
 function updateTimer() {
     if (workoutInProgress && workoutStartTime) {
@@ -285,23 +313,6 @@ function showCategory(category) {
     });
 }
 
-function changeMode(newMode) {
-    fetch(`/workout/change_mode/${newMode}`)
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                document.getElementById('mode').textContent = newMode.toUpperCase();
-                document.querySelectorAll('.exercise-btn').forEach(btn => {
-                    btn.classList.remove('active');
-                    if (btn.getAttribute('data-mode') === newMode) {
-                        btn.classList.add('active');
-                    }
-                });
-            }
-        })
-        .catch(error => console.error('Error changing mode:', error));
-}
-
 const weightedExercises = ["dl", "fs", "br", "op", "cu", "bp"];
 let currentWeight = 0;
 let currentReps = 0;
@@ -353,30 +364,40 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function changeMode(newMode) {
+    const weightedExercises = ["dl", "fs", "br", "op", "cu", "bp"];
+    
     fetch(`/workout/change_mode/${newMode}`)
         .then(response => response.json())
         .then(data => {
             if (data.success) {
                 document.getElementById('mode').textContent = newMode.toUpperCase();
+                
                 const modeBadge = document.getElementById('currentMode');
-                if (weightedExercises.includes(newMode)) {
+                const isWeightedExercise = weightedExercises.includes(newMode);
+                
+                if (isWeightedExercise) {
                     modeBadge.classList.add('weighted');
-                    showWeightInput();
+                    updateWeightInputDisplay(true);
                 } else {
                     modeBadge.classList.remove('weighted');
-                    hideWeightInput();
+                    updateWeightInputDisplay(false);
                 }
-
-                currentReps = 0;
+                
                 document.querySelectorAll('.exercise-btn').forEach(btn => {
-                    btn.classList.remove('active');
-                    if (btn.getAttribute('data-mode') === newMode) {
-                        btn.classList.add('active');
-                    }
+                    btn.classList.toggle('active', btn.getAttribute('data-mode') === newMode);
                 });
+                
+                currentReps = 0;
+                
+                if (typeof OneRepMax !== 'undefined' && OneRepMax.handleModeChange) {
+                    OneRepMax.handleModeChange(newMode);
+                }
             }
         })
-        .catch(error => console.error('Error changing mode:', error));
+        .catch(error => {
+            console.error('Error changing mode:', error);
+            showToast('Error changing exercise mode. Please try again.', 'error');
+        });
 }
 
 socket.on('update_stats', (data) => {
@@ -483,17 +504,25 @@ function hideWeightInput() {
 }
 
 function updateWeight(weight) {
-    currentWeight = parseFloat(weight);
-    sessionStorage.setItem('currentWeight', currentWeight);
-
+    const weightValue = parseFloat(weight);
+    
+    if (isNaN(weightValue) || weightValue < 0) return;
+    
+    currentWeight = weightValue;
+    localStorage.setItem('currentWeight', weightValue);
+    
     fetch('/api/update_exercise_weight', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ weight: currentWeight })
+        body: JSON.stringify({ weight: weightValue })
     })
     .catch(error => console.error('Error updating weight:', error));
+    
+    if (typeof OneRepMax !== 'undefined' && OneRepMax.updateWeight) {
+        OneRepMax.updateWeight(weightValue);
+    }
 }
 
 function calculateBrzycki(weight, reps) {
@@ -618,6 +647,35 @@ document.getElementById('refresh-stats-btn').addEventListener('click', function(
             alert('Error refreshing stats');
         });
 });
+
+function updateWeightInputDisplay(show) {
+    const existingInput = document.getElementById('weightInput');
+    if (existingInput) {
+        existingInput.remove();
+    }
+    
+    if (show) {
+        const weightInput = document.createElement('div');
+        weightInput.id = 'weightInput';
+        weightInput.className = 'weight-input';
+        
+        const savedWeight = localStorage.getItem('currentWeight') || 0;
+        
+        weightInput.innerHTML = `
+            <label for="exerciseWeight">Weight:</label>
+            <input type="number" id="exerciseWeight" min="0" step="2.5" value="${savedWeight}">
+            <span class="weight-input-unit">lbs</span>
+        `;
+        
+        const modeBadge = document.getElementById('currentMode');
+        modeBadge.parentNode.insertBefore(weightInput, modeBadge.nextSibling);
+        
+        document.getElementById('exerciseWeight').addEventListener('change', function() {
+            updateWeight(this.value);
+        });
+    }
+}
+
 
 function goToDashboard() {
     sessionStorage.setItem('forceRefresh', 'true');

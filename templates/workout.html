@@ -9,6 +9,353 @@
     <link rel="stylesheet" href="/static/workout.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.socket.io/4.0.1/socket.io.min.js"></script>
+    <style>
+        .workout-container {
+            padding: 7rem 2rem 2rem;
+            min-height: 100vh;
+            background: var(--bg);
+            display: grid;
+            grid-template-columns: 1fr;
+            grid-template-rows: auto auto;
+            gap: 1.5rem;
+        }
+
+        .main-exercise-grid {
+            display: grid;
+            grid-template-columns: 6fr 4fr;
+            gap: 1.5rem;
+        }
+
+        .camera-section {
+            position: relative;
+        }
+
+        .right-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        .stats-section {
+            background: rgba(17, 17, 17, 0.7);
+            border-radius: 15px;
+            padding: 1.5rem;
+            border: 1px solid #222;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1rem;
+        }
+
+        .stat-box {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            padding: 1.5rem;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 3rem;
+            color: var(--primary);
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-label {
+            color: #666;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .form-status .stat-value {
+            color: #22c55e;
+        }
+
+        .form-status.bad .stat-value {
+            color: #ff4444;
+        }
+
+        .exercise-section {
+            background: rgba(17, 17, 17, 0.7);
+            border-radius: 15px;
+            padding: 1.5rem;
+            border: 1px solid #222;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .exercise-tabs {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .exercise-tab {
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid #333;
+            color: #fff;
+            cursor: pointer;
+        }
+
+        .exercise-tab.active {
+            background: var(--primary);
+            color: #000;
+            border-color: var(--primary);
+        }
+
+        .exercise-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1rem;
+            max-height: 300px;
+            overflow-y: auto;
+            padding-right: 0.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .exercise-grid::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .exercise-grid::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 3px;
+        }
+
+        .exercise-grid::-webkit-scrollbar-thumb {
+            background: var(--primary);
+            border-radius: 3px;
+        }
+
+        .exercise-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            padding: 1rem;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid #333;
+            border-radius: 8px;
+            color: #fff;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .exercise-btn:hover {
+            background: rgba(69, 255, 202, 0.1);
+            border-color: var(--primary);
+        }
+
+        .exercise-btn.active {
+            background: var(--primary);
+            color: #000;
+            border-color: var(--primary);
+        }
+
+        .start-button {
+            padding: 1.2rem;
+            border-radius: 10px;
+            background: var(--primary);
+            color: #000;
+            font-size: 1.2rem;
+            font-weight: 600;
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.75rem;
+            margin-top: auto;
+            transition: all 0.3s ease;
+        }
+
+        .start-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(69, 255, 202, 0.3);
+        }
+
+        .start-button.stop {
+            background: #ff4444;
+            color: #fff;
+        }
+
+        .finish-button {
+            padding: 1.2rem;
+            border-radius: 10px;
+            background: #22c55e;
+            color: #fff;
+            font-size: 1.2rem;
+            font-weight: 600;
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.75rem;
+            margin-top: 1rem;
+            transition: all 0.3s ease;
+        }
+
+        .finish-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(34, 197, 94, 0.3);
+        }
+
+        .heart-rate-section {
+            grid-column: span 2;
+            background: rgba(17, 17, 17, 0.7);
+            border-radius: 15px;
+            padding: 1.5rem;
+            border: 1px solid #222;
+            display: grid;
+            grid-template-columns: auto 1fr;
+            gap: 2rem;
+            align-items: center;
+        }
+
+        .hr-display {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .hr-value {
+            font-size: 3.5rem;
+            font-weight: 700;
+            color: #fff;
+            display: flex;
+            align-items: baseline;
+        }
+
+        .hr-unit {
+            font-size: 1.5rem;
+            color: #666;
+            margin-left: 0.5rem;
+        }
+
+        .hr-zone {
+            padding: 0.5rem 1.5rem;
+            border-radius: 9999px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .hr-zone.resting {
+            background: #22c55e;
+            color: #000;
+        }
+
+        .hr-zone.fat-burn {
+            background: #eab308;
+            color: #000;
+        }
+
+        .hr-zone.cardio {
+            background: #ef4444;
+            color: #fff;
+        }
+
+        .hr-zone.peak {
+            background: #7c3aed;
+            color: #fff;
+        }
+
+        .hr-connect {
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            background: #333;
+            color: #fff;
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-top: 0.5rem;
+            transition: all 0.3s ease;
+        }
+
+        .hr-connect:hover {
+            background: #444;
+        }
+
+        .hr-connect.connected {
+            background: #22c55e;
+        }
+
+        .hr-chart {
+            height: 150px;
+        }
+
+        /* Countdown overlay */
+        .countdown-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 10;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+
+        .countdown-overlay.active {
+            opacity: 1;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(0.8); opacity: 0; }
+            50% { transform: scale(1.2); opacity: 1; }
+            100% { transform: scale(1); opacity: 0.8; }
+        }
+
+        .countdown-number {
+            animation: pulse 1s ease-out;
+            color: #45ffca;
+            font-size: 8rem;
+            font-weight: bold;
+        }
+
+        .countdown-go {
+            color: #ff4d4d;
+            font-size: 6rem;
+            animation: pulse 1s ease-out;
+        }
+
+        @media (max-width: 1024px) {
+            .main-exercise-grid {
+                grid-template-columns: 1fr;
+                gap: 1.5rem;
+            }
+
+            .right-panel {
+                gap: 1.5rem;
+            }
+
+            .heart-rate-section {
+                grid-column: 1;
+                grid-template-columns: 1fr;
+                gap: 1.5rem;
+            }
+
+            .hr-display {
+                flex-direction: row;
+                justify-content: space-between;
+                width: 100%;
+            }
+        }
+    </style>
 </head>
 <body>
     <nav class="nav-container">
@@ -19,137 +366,137 @@
         </div>
     </nav>
 
-    <div class="workout-container" style="padding-top: 7rem;">
-        <div class="workout-card">
-            <div class="card-header">
-                <h2>Form Analysis</h2>
-                <div class="mode-badge" id="currentMode">
-                    Mode: <span id="mode">--</span>
-                </div>
-            </div>
-            
-            <div class="camera-feed">
-                <img src="{{ url_for('video_feed') }}" alt="Video Feed">
-            </div>
-            
-            <div class="stats-display">
-                <div class="stat-item">
-                    <div class="stat-value" id="reps">0</div>
-                    <div class="stat-label">Reps</div>
-                </div>
-                <div class="stat-item">
-                    <div class="stat-value" id="calories">0.0</div>
-                    <div class="stat-label">Calories</div>
-                </div>
-                <div class="stat-item">
-                    <div class="stat-value" id="time">00:00</div>
-                    <div class="stat-label">Duration</div>
-                </div>
-                <div class="stat-item form-status">
-                    <div class="stat-value" id="formStatus">Good</div>
-                    <div class="stat-label">Form</div>
+    <div class="workout-container">
+        <div class="main-exercise-grid">
+            <div class="camera-section">
+                <div class="camera-feed">
+                    <img src="{{ url_for('video_feed') }}" alt="Video Feed">
+                    <div id="countdownOverlay" class="countdown-overlay">
+                        <span id="countdownText" class="countdown-number">3</span>
+                    </div>
                 </div>
             </div>
 
-            <div class="exercise-categories">
-                <button class="category-btn active" onclick="showCategory('bodyweight')">Bodyweight</button>
-                <button class="category-btn" onclick="showCategory('weights')">Weights</button>
-            </div>
+            <div class="right-panel">
+                <div class="stats-section">
+                    <div class="stats-grid">
+                        <div class="stat-box">
+                            <div class="stat-value" id="reps">0</div>
+                            <div class="stat-label">Reps</div>
+                        </div>
+                        <div class="stat-box">
+                            <div class="stat-value" id="calories">0.0</div>
+                            <div class="stat-label">Calories</div>
+                        </div>
+                        <div class="stat-box">
+                            <div class="stat-value" id="time">00:00</div>
+                            <div class="stat-label">Duration</div>
+                        </div>
+                        <div class="stat-box form-status">
+                            <div class="stat-value" id="formStatus">Good</div>
+                            <div class="stat-label">Form</div>
+                        </div>
+                    </div>
+                </div>
 
-            <div class="workout-controls bodyweight-exercises">
-                <button class="control-btn exercise-btn" onclick="changeMode('sq')" data-mode="sq">
-                    <i class='bx bx-run'></i>
-                    Squats
-                </button>
-                <button class="control-btn exercise-btn" onclick="changeMode('pu')" data-mode="pu">
-                    <i class='bx bx-body'></i>
-                    Push-ups
-                </button>
-                <button class="control-btn exercise-btn" onclick="changeMode('lu')" data-mode="lu">
-                    <i class='bx bx-walk'></i>
-                    Lunges
-                </button>
-                <button class="control-btn exercise-btn" onclick="changeMode('pl')" data-mode="pl">
-                    <i class='bx bx-timer'></i>
-                    Plank
-                </button>
-                <button class="control-btn exercise-btn" onclick="changeMode('cr')" data-mode="cr">
-                    <i class='bx bx-refresh'></i>
-                    Crunches
-                </button>
-                <button class="control-btn exercise-btn" onclick="changeMode('mc')" data-mode="mc">
-                    <i class='bx bx-run'></i>
-                    Mountain Climbers
-                </button>
-                <button class="control-btn exercise-btn" onclick="changeMode('jj')" data-mode="jj">
-                    <i class='bx bx-star'></i>
-                    Jumping Jacks
-                </button>
-                <button class="control-btn exercise-btn" onclick="changeMode('bup')" data-mode="bup">
-                    <i class='bx bx-bomb'></i>
-                    Burpees
-                </button>
-            </div>
+                <div class="exercise-section">
+                    <div class="exercise-tabs">
+                        <button class="exercise-tab active" onclick="showCategory('bodyweight')">Bodyweight</button>
+                        <button class="exercise-tab" onclick="showCategory('weights')">Weights</button>
+                    </div>
 
-            <div class="workout-controls weights-exercises" style="display: none;">
-                <button class="control-btn exercise-btn" onclick="changeMode('cu')" data-mode="cu">
-                    <i class='bx bx-dumbbell'></i>
-                    Bicep Curls
-                </button>
-                <button class="control-btn exercise-btn" onclick="changeMode('dl')" data-mode="dl">
-                    <i class='bx bx-dumbbell'></i>
-                    Deadlift
-                </button>
-                <button class="control-btn exercise-btn" onclick="changeMode('bp')" data-mode="bp">
-                    <i class='bx bx-dumbbell'></i>
-                    Bench Press
-                </button>
-                <button class="control-btn exercise-btn" onclick="changeMode('op')" data-mode="op">
-                    <i class='bx bx-up-arrow-alt'></i>
-                    Overhead Press
-                </button>
-                <button class="control-btn exercise-btn" onclick="changeMode('br')" data-mode="br">
-                    <i class='bx bx-dumbbell'></i>
-                    Bent Over Row
-                </button>
-                <button class="control-btn exercise-btn" onclick="changeMode('fs')" data-mode="fs">
-                    <i class='bx bx-dumbbell'></i>
-                    Front Squat
-                </button>
-            </div>
+                    <div class="exercise-grid bodyweight-exercises">
+                        <button class="exercise-btn" onclick="changeMode('sq')" data-mode="sq">
+                            <i class='bx bx-run'></i>
+                            Squats
+                        </button>
+                        <button class="exercise-btn" onclick="changeMode('pu')" data-mode="pu">
+                            <i class='bx bx-body'></i>
+                            Push-ups
+                        </button>
+                        <button class="exercise-btn" onclick="changeMode('lu')" data-mode="lu">
+                            <i class='bx bx-walk'></i>
+                            Lunges
+                        </button>
+                        <button class="exercise-btn" onclick="changeMode('pl')" data-mode="pl">
+                            <i class='bx bx-timer'></i>
+                            Plank
+                        </button>
+                        <button class="exercise-btn" onclick="changeMode('cr')" data-mode="cr">
+                            <i class='bx bx-refresh'></i>
+                            Crunches
+                        </button>
+                        <button class="exercise-btn" onclick="changeMode('mc')" data-mode="mc">
+                            <i class='bx bx-run'></i>
+                            Mountain Climbers
+                        </button>
+                        <button class="exercise-btn" onclick="changeMode('jj')" data-mode="jj">
+                            <i class='bx bx-star'></i>
+                            Jumping Jacks
+                        </button>
+                        <button class="exercise-btn" onclick="changeMode('bup')" data-mode="bup">
+                            <i class='bx bx-bomb'></i>
+                            Burpees
+                        </button>
+                    </div>
 
-            <div class="workout-controls control-buttons">
-                <button class="control-btn" id="startStop" onclick="toggleExercise()">
-                    <i class='bx bx-play'></i>
-                    Start
-                </button>
-                <button class="control-btn finish-btn" id="finishWorkout" onclick="finishWorkout()" style="display: none;">
-                    <i class='bx bx-check-circle'></i>
-                    Finish Workout
-                </button>
+                    <div class="exercise-grid weights-exercises" style="display: none;">
+                        <button class="exercise-btn" onclick="changeMode('cu')" data-mode="cu">
+                            <i class='bx bx-dumbbell'></i>
+                            Bicep Curls
+                        </button>
+                        <button class="exercise-btn" onclick="changeMode('dl')" data-mode="dl">
+                            <i class='bx bx-dumbbell'></i>
+                            Deadlift
+                        </button>
+                        <button class="exercise-btn" onclick="changeMode('bp')" data-mode="bp">
+                            <i class='bx bx-dumbbell'></i>
+                            Bench Press
+                        </button>
+                        <button class="exercise-btn" onclick="changeMode('op')" data-mode="op">
+                            <i class='bx bx-up-arrow-alt'></i>
+                            Overhead Press
+                        </button>
+                        <button class="exercise-btn" onclick="changeMode('br')" data-mode="br">
+                            <i class='bx bx-dumbbell'></i>
+                            Bent Over Row
+                        </button>
+                        <button class="exercise-btn" onclick="changeMode('fs')" data-mode="fs">
+                            <i class='bx bx-dumbbell'></i>
+                            Front Squat
+                        </button>
+                    </div>
+
+                    <div class="mode-badge" id="currentMode">
+                        Mode: <span id="mode">--</span>
+                    </div>
+
+                    <button class="start-button" id="startStop" onclick="toggleExercise()">
+                        <i class='bx bx-play'></i>
+                        Start Workout
+                    </button>
+                    
+                    <button class="finish-button" id="finishWorkout" onclick="finishWorkout()" style="display: none;">
+                        <i class='bx bx-check-circle'></i>
+                        Finish Workout
+                    </button>
+                </div>
             </div>
         </div>
 
-        <div class="workout-card">
-            <div class="card-header">
-                <h2>Heart Rate</h2>
-                <button id="connectBtn" class="connect-button" onclick="connectHR()">
+        <div class="heart-rate-section">
+            <div class="hr-display">
+                <div class="hr-value">
+                    <span id="heartRate">--</span>
+                    <span class="hr-unit">BPM</span>
+                </div>
+                <div class="hr-zone resting" id="heartRateZone">Resting</div>
+                <button class="hr-connect" id="connectBtn" onclick="connectHR()">
                     <i class='bx bx-heart'></i>
-                    Connect
+                    Connect Heart Rate Monitor
                 </button>
             </div>
-            
-            <div class="heart-rate-display">
-                <div class="bpm-display">
-                    <span id="heartRate">--</span>
-                    <span class="bpm-label">BPM</span>
-                </div>
-                <div id="heartRateZone" class="zone-indicator">
-                    Resting
-                </div>
-            </div>
-            
-            <div class="chart-container">
+            <div class="hr-chart">
                 <canvas id="heartRateChart"></canvas>
             </div>
         </div>
@@ -173,47 +520,67 @@
                 </div>
             </div>
             <div class="modal-buttons">
-				<button onclick="goToDashboard()" class="btn primary">Go to Dashboard</button>
+                <button onclick="goToDashboard()" class="btn primary">Go to Dashboard</button>
                 <button onclick="startNewWorkout()" class="btn outline">New Workout</button>
             </div>
         </div>
     </div>
 
+    <!-- One Rep Max modal -->
+    <div id="oneRepMaxModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Calculate One Rep Max</h3>
+                <button class="modal-close" onclick="closeModal('oneRepMaxModal')">
+                    <i class='bx bx-x'></i>
+                </button>
+            </div>
+            
+            <form id="ormForm">
+                <div class="form-group">
+                    <label for="ormWeight">Weight Used (lbs)</label>
+                    <input type="number" id="ormWeight" min="1" step="2.5" required>
+                </div>
+                
+                <div class="help-text">
+                    <p>Using your current rep count: <strong id="ormReps">0</strong></p>
+                </div>
+                
+                <div id="ormResult" style="display: none;">
+                    <h4>Your Estimated One Rep Max</h4>
+                    <div class="orm-value"><span id="ormValue">0</span> lbs</div>
+                </div>
+                
+                <button type="submit" class="btn primary">Calculate</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        function showCategory(category) {
+            const bodyweightExercises = document.querySelector('.bodyweight-exercises');
+            const weightsExercises = document.querySelector('.weights-exercises');
+            const categoryTabs = document.querySelectorAll('.exercise-tab');
+            
+            if (category === 'bodyweight') {
+                bodyweightExercises.style.display = 'grid';
+                weightsExercises.style.display = 'none';
+            } else {
+                bodyweightExercises.style.display = 'none';
+                weightsExercises.style.display = 'grid';
+            }
+            
+            categoryTabs.forEach(tab => {
+                if (tab.textContent.toLowerCase() === category) {
+                    tab.classList.add('active');
+                } else {
+                    tab.classList.remove('active');
+                }
+            });
+        }
+    </script>
+
     <script src="{{ url_for('static', filename='workout.js') }}"></script>
-
-	<div id="oneRepMaxModal" class="modal">
-	    <div class="modal-content">
-	        <div class="modal-header">
-	            <h3>Calculate One Rep Max</h3>
-	            <button class="modal-close" onclick="OneRepMax.closeModal()">
-	                <i class='bx bx-x'></i>
-	            </button>
-	        </div>
-	        
-	        <form id="ormForm">
-	            <div class="form-group">
-	                <label for="ormWeight">Weight Used (lbs)</label>
-	                <input type="number" id="ormWeight" min="1" step="2.5" required>
-	            </div>
-	            
-	            <div class="help-text">
-	                <p>Using your current rep count: <strong id="ormReps">0</strong></p>
-	            </div>
-	            
-	            <div id="ormResult" style="display: none;">
-	                <h4>Your Estimated One Rep Max</h4>
-	                <div class="orm-value"><span id="ormValue">0</span> lbs</div>
-	            </div>
-	            
-	            <button type="submit" class="btn primary">Calculate</button>
-	        </form>
-	    </div>
-	</div>
-
-	<div id="weightToastContainer"></div>
-
-	<link rel="stylesheet" href="{{ url_for('static', filename='one_rep_max.css') }}">
-	<script src="{{ url_for('static', filename='one_rep_max.js') }}"></script>
-
+    <script src="{{ url_for('static', filename='one_rep_max.js') }}"></script>
 </body>
 </html>
