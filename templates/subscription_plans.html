@@ -8,7 +8,7 @@
     <link rel="stylesheet" href="/static/styles.css">
     <link rel="stylesheet" href="/static/subscription.css">
 </head>
-<body>
+<body class="{{ 'logged-in' if current_user.is_authenticated else '' }}"> 
     <nav class="nav-container">
         <a href="/" class="logo">Pump <span>Chest</span></a>
         <div class="nav-btns">
@@ -25,29 +25,12 @@
     <section class="subscription-container">
         <div class="subscription-header">
             <h1>Choose Your Plan</h1>
-            <p>Select the plan that best suits your fitness goals</p>
+            <p>Unlock premium features to maximize your results</p>
         </div>
 
-        <div class="plans-grid">
-            <div class="plan-card">
-                <div class="plan-header">
-                    <h2>Basic</h2>
-                    <div class="price">$5<span>/month</span></div>
-                </div>
-                <ul class="plan-features">
-                    <li><i class='bx bx-check'></i> Form Detection</li>
-                    <li><i class='bx bx-check'></i> Basic Analytics</li>
-                    <li><i class='bx bx-check'></i> Exercise Library</li>
-                    <li><i class='bx bx-x'></i> Heart Rate Monitoring</li>
-                    <li><i class='bx bx-x'></i> Custom Workout Plans</li>
-                </ul>
-                <button class="btn primary" id="basicPlanBtn" onclick="selectPlan('price_basic_monthly')">
-                    Select Plan
-                </button>
-            </div>
-            
+        <div class="plans-grid single-plan"> 
             <div class="plan-card featured">
-                <div class="popular-tag">Most Popular</div>
+                {# <div class="popular-tag">Most Popular</div> #} 
                 <div class="plan-header">
                     <h2>Premium</h2>
                     <div class="price">$15<span>/month</span></div>
@@ -55,80 +38,126 @@
                 <ul class="plan-features">
                     <li><i class='bx bx-check'></i> Advanced Form Analysis</li>
                     <li><i class='bx bx-check'></i> Heart Rate Monitoring</li>
-                    <li><i class='bx bx-check'></i> Detailed Analytics</li>
-                    <li><i class='bx bx-check'></i> Custom Workout Plans</li>
+                    <li><i class='bx bx-check'></i> Detailed Analytics & Efficiency Reports</li>
+                    <li><i class='bx bx-check'></i> Custom Workout Plans (Coming Soon!)</li>
                     <li><i class='bx bx-check'></i> Priority Support</li>
+                    <li><i class='bx bx-check'></i> Full Data Export</li>
                 </ul>
-                <button class="btn primary" id="premiumPlanBtn" onclick="selectPlan('price_premium_monthly')">
-                    Select Plan
+                <button class="btn primary" id="premiumPlanBtn">
+                    {% if current_user.is_authenticated and current_user.subscription_tier == 'premium' and current_user.subscription and current_user.subscription.is_active() %}
+                        Current Plan
+                    {% else %}
+                        Get Premium
+                    {% endif %}
                 </button>
             </div>
         </div>
 
-        <div class="comparison-table">
-            <h2>Feature Comparison</h2>
-            <table>
-                <thead>
-                    <tr>
-                        <th>Feature</th>
-                        <th>Basic</th>
-                        <th>Premium</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td>Exercise Tracking</td>
-                        <td><i class='bx bx-check'></i></td>
-                        <td><i class='bx bx-check'></i></td>
-                    </tr>
-                    <tr>
-                        <td>Form Detection</td>
-                        <td><i class='bx bx-check'></i> Basic</td>
-                        <td><i class='bx bx-check'></i> Advanced</td>
-                    </tr>
-                    <tr>
-                        <td>Analytics</td>
-                        <td><i class='bx bx-check'></i> Basic</td>
-                        <td><i class='bx bx-check'></i> Advanced</td>
-                    </tr>
-                    <tr>
-                        <td>Heart Rate Monitoring</td>
-                        <td><i class='bx bx-x'></i></td>
-                        <td><i class='bx bx-check'></i></td>
-                    </tr>
-                    <tr>
-                        <td>One Rep Max Tracking</td>
-                        <td><i class='bx bx-x'></i></td>
-                        <td><i class='bx bx-check'></i></td>
-                    </tr>
-                    <tr>
-                        <td>Custom Workout Plans</td>
-                        <td><i class='bx bx-x'></i></td>
-                        <td><i class='bx bx-check'></i></td>
-                    </tr>
-                    <tr>
-                        <td>Workout Export</td>
-                        <td><i class='bx bx-check'></i> Limited</td>
-                        <td><i class='bx bx-check'></i> Full</td>
-                    </tr>
-                    <tr>
-                        <td>Priority Support</td>
-                        <td><i class='bx bx-x'></i></td>
-                        <td><i class='bx bx-check'></i></td>
-                    </tr>
-                </tbody>
-            </table>
+        <div class="free-info">
+            <p>All users start on the <span class="plan-badge free">Free</span> plan upon registration, which includes basic workout tracking and form detection.</p>
         </div>
+
     </section>
 
     <script>
-document.getElementById('basicPlanBtn').onclick = function() {
-  selectPlan('price_1QotwkC7V1IsAcfzTj3oQWdT'); 
-};
+        document.addEventListener('DOMContentLoaded', function() {
+            const premiumPlanBtn = document.getElementById('premiumPlanBtn');
 
-document.getElementById('premiumPlanBtn').onclick = function() {
-  selectPlan('price_1Qotx0C7V1IsAcfzDdAzenjQ'); 
-};
+            if (premiumPlanBtn) {
+                if (premiumPlanBtn.textContent.includes('Current Plan')) {
+                    premiumPlanBtn.disabled = true;
+                    premiumPlanBtn.style.cursor = 'default';
+                    premiumPlanBtn.style.opacity = '0.7';
+                } else {
+                    premiumPlanBtn.addEventListener('click', function() {
+                        selectPlan('premium'); 
+                    });
+                }
+            }
+        });
+
+        async function selectPlan(planId) {
+             if (planId !== 'premium') return;
+
+            try {
+                const isLoggedIn = document.body.classList.contains('logged-in');
+
+                if (!isLoggedIn) {
+                    sessionStorage.setItem('selectedPlanId', planId);
+                    window.location.href = `/register?plan=${planId}`;
+                    return;
+                }
+
+                const button = document.getElementById('premiumPlanBtn');
+                if (button && !button.disabled) {
+                    const originalText = button.innerHTML;
+                    button.innerHTML = '<i class="bx bx-loader-alt bx-spin"></i> Processing...';
+                    button.disabled = true;
+
+                    const response = await fetch('/subscription/create-checkout-session', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', },
+                        body: JSON.stringify({ plan_id: planId }) 
+                    });
+                    const data = await response.json();
+
+                    if (data.error) {
+                        console.error('Error creating checkout session:', data.error);
+                        alert(`Error: ${data.error}`);
+                        button.innerHTML = originalText; 
+                        button.disabled = false;
+                        return;
+                    }
+                    window.location.href = data.checkoutUrl; 
+                }
+
+            } catch (error) {
+                console.error('Error selecting plan:', error);
+                alert('An error occurred. Please try again.');
+                const button = document.getElementById('premiumPlanBtn');
+                 if (button) {
+                     button.innerHTML = 'Get Premium'; 
+                     button.disabled = false;
+                 }
+            }
+        }
+
+         if (document.location.pathname.includes('/dashboard') || document.location.pathname.includes('/profile/setup')) { // Check on relevant pages post-login
+             const planId = sessionStorage.getItem('selectedPlanId');
+             if (planId === 'premium') {
+                 sessionStorage.removeItem('selectedPlanId');
+                 setTimeout(() => {
+                     console.log("Triggering premium checkout after registration redirect...");
+                     selectPlan('premium');
+                 }, 500);
+             }
+         }
+
     </script>
+    <style>
+        .plans-grid.single-plan {
+            grid-template-columns: minmax(300px, 500px); 
+            justify-content: center;
+            margin-bottom: 2rem; 
+        }
+        .free-info {
+            text-align: center;
+            margin-top: 2rem; 
+            color: #999;
+            font-size: 1rem;
+        }
+        .plan-badge.free {
+            background: rgba(100, 116, 139, 0.15);
+            color: #cbd5e1;
+            border: 1px solid #475569;
+            display: inline-block; 
+            padding: 0.3rem 0.8rem;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            vertical-align: middle; 
+        }
+        .comparison-table { display: none; } 
+    </style>
 </body>
 </html>

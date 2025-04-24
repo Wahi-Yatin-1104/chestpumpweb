@@ -20,34 +20,44 @@ from sqlalchemy import func
 from subscription_middleware import premium_required
 from subscription_routes import subscription_bp
 from flask_cors import CORS
+import stripe
+from dateutil.relativedelta import relativedelta 
+import traceback
+import csv
+import io
+from flask import make_response, send_file
 
-# Load environment variables
 load_dotenv()
 
-# Initialize Flask and existing configurations
+# Initialize Flask 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY')
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-# Mail configuration
+
+# Mail 
 app.config['MAIL_SERVER'] = os.getenv('MAIL_SERVER')
 app.config['MAIL_PORT'] = int(os.getenv('MAIL_PORT', 587))
 app.config['MAIL_USE_TLS'] = os.getenv('MAIL_USE_TLS', 'True') == 'True'
 app.config['MAIL_USERNAME'] = os.getenv('MAIL_USERNAME')
 app.config['MAIL_PASSWORD'] = os.getenv('MAIL_PASSWORD')
 
-# Initialize extensions
+
 db.init_app(app)
 mail = Mail(app)
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
+migrate = Migrate(app, db)
+socketio = SocketIO(app) 
+stripe.api_key = os.getenv('STRIPE_SECRET_KEY') # Stripe
 
-# Initialize SocketIO
+
+# SocketIO
 socketio = SocketIO(app)
 
-# Initialize MediaPipe
+# MediaPipe
 mp_pose = mp.solutions.pose
 mp_draw = mp.solutions.drawing_utils
 
@@ -1523,6 +1533,49 @@ def share_workout(workout_id):
         print(f"Error sharing workout: {e}")
         return jsonify({'error': 'Failed to share workout'}), 500
 
+
+
+@app.route('/api/efficiency-data')
+@login_required
+def get_efficiency_data():
+    try:
+        days = request.args.get('days', 'all')
+        
+        query = WorkoutSession.query.filter(
+            WorkoutSession.user_id == current_user.id,
+            WorkoutSession.is_completed == True
+        )
+        
+        if days != 'all':
+            days = int(days)
+            cutoff_date = datetime.utcnow() - timedelta(days=days)
+            query = query.filter(WorkoutSession.date >= cutoff_date)
+            
+        workouts = query.order_by(WorkoutSession.date).all()
+        
+        user_data = {
+            'name': current_user.name,
+            'fitness_level': current_user.profile.fitness_level if current_user.profile else 'beginner'
+        }
+        workout_data = [workout.to_dict() for workout in workouts]
+        
+        from workout_analytics import WorkoutEfficiencyAnalyzer
+        analyzer = WorkoutEfficiencyAnalyzer(user_data, workout_data)
+        efficiency_report = analyzer.generate_report()
+        
+        return jsonify({
+            'success': True,
+            'efficiency': efficiency_report
+        })
+        
+    except Exception as e:
+        print(f"Error fetching efficiency data: {e}")
+        return jsonify({
+            'success': False,
+            'message': 'Failed to fetch efficiency data'
+        }), 500
+
+
 @app.route('/shared-workout/<token>')
 def view_shared_workout(token):
     app.shared_workouts = getattr(app, 'shared_workouts', {})
@@ -1554,3 +1607,5 @@ if __name__ == '__main__':
         except Exception as e:
             print(f"Database initialization error: {e}")
     socketio.run(app, debug=True)
+    
+ 

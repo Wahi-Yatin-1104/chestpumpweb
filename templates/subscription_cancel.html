@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Subscription Cancelled - Pump Chest</title>
+    <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
+    <link rel="stylesheet" href="/static/styles.css">
+    <link rel="stylesheet" href="/static/subscription.css">
+</head>
+<body>
+    <nav class="nav-container">
+        <a href="/" class="logo">Pump <span>Chest</span></a>
+        <div class="nav-btns">
+            {% if current_user.is_authenticated %}
+                <a href="/dashboard" class="btn outline">Dashboard</a>
+                <a href="/logout" class="btn outline">Logout</a>
+            {% else %}
+                <a href="/login" class="btn outline">Login</a>
+                <a href="/register" class="btn primary">Sign Up</a>
+            {% endif %}
+        </div>
+    </nav>
+
+    <section class="subscription-container">
+        <div class="thank-you-container">
+            <div class="thank-you-icon cancel">
+                <i class='bx bx-x-circle'></i>
+            </div>
+            <h1 class="thank-you-title">Subscription Cancelled</h1>
+            <p class="thank-you-message">Your subscription was not completed. You can try again or contact support if you need help.</p>
+            
+            <div class="action-buttons">
+                <a href="/subscription/plans" class="btn primary">Try Again</a>
+                <a href="/dashboard" class="btn outline">Go to Dashboard</a>
+            </div>
+        </div>
+    </section>
+</body>
+</html>
