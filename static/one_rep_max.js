@@ -7,21 +7,28 @@ const OneRepMax = (function() {
     let currentMode = "";
     
     function initialize() {
-
         removeExistingButtons();
-        
         currentMode = document.getElementById('mode')?.textContent.toLowerCase() || "";
-        
-        if (isWeightedExercise(currentMode)) {
-            addToggleButton();
+
+        const isWeighted = isWeightedExercise(currentMode);
+        const container = document.getElementById('oneRepMaxContainer');
+        if (container) {
+            container.style.display = isWeighted ? 'block' : 'none';
         }
-        
+            
+        if (isWeighted && localStorage.getItem('ormEnabled') === 'true') {
+            enableFeature();
+            const toggleBtn = document.getElementById('oneRepMaxToggle');
+            if (toggleBtn) {
+                toggleBtn.textContent = 'Disable 1RM Tracking';
+                toggleBtn.classList.add('active');
+            }
+        } else if (!isWeighted) {
+            disableFeature();
+        }
+
         listenForStatsUpdates();
         setupFormHandler();
-        
-        if (localStorage.getItem('ormEnabled') === 'true') {
-            enableFeature();
-        }
         
         console.log('One Rep Max module initialized');
     }
@@ -51,26 +58,21 @@ const OneRepMax = (function() {
         }
     }
     
-    function addToggleButton() {
-        const controlButtons = document.querySelector('.workout-controls.control-buttons');
-        if (!controlButtons) {
-            return;
-        }
-        
-        const toggleButton = document.createElement('button');
-        toggleButton.id = 'ormToggleButton';
-        toggleButton.className = 'control-btn';
-        toggleButton.innerHTML = '<i class="bx bx-dumbbell"></i> Enable 1RM Tracking';
-        toggleButton.onclick = toggleFeature;
-        
-        controlButtons.appendChild(toggleButton);
-    }
-    
-    function toggleFeature() {
+    function toggleOneRepMax() {
         if (isEnabled) {
             disableFeature();
+            const toggleBtn = document.getElementById('oneRepMaxToggle');
+            if (toggleBtn) {
+                toggleBtn.innerHTML = '<i class="bx bx-dumbbell"></i> Enable 1RM Tracking';
+                toggleBtn.classList.remove('active');
+            }
         } else {
             enableFeature();
+            const toggleBtn = document.getElementById('oneRepMaxToggle');
+            if (toggleBtn) {
+                toggleBtn.innerHTML = '<i class="bx bx-dumbbell"></i> Disable 1RM Tracking';
+                toggleBtn.classList.add('active');
+            }
         }
     }
     
@@ -78,19 +80,32 @@ const OneRepMax = (function() {
         isEnabled = true;
         localStorage.setItem('ormEnabled', 'true');
         
-        const toggleButton = document.getElementById('ormToggleButton');
-        if (toggleButton) {
-            toggleButton.innerHTML = '<i class="bx bx-dumbbell"></i> Disable 1RM Tracking';
-            toggleButton.classList.add('active');
-        }
-        
         const savedWeight = localStorage.getItem('currentWeight');
         if (savedWeight) {
             currentWeight = parseFloat(savedWeight);
         }
         
         if (isWeightedExercise(currentMode)) {
-            addWeightInput();
+            const weightInput = document.getElementById('weightInputContainer');
+            if (weightInput) {
+                weightInput.style.display = 'block';
+                
+                const exerciseWeightInput = document.getElementById('exerciseWeight');
+                if (exerciseWeightInput) {
+                    if (!exerciseWeightInput.hasAttribute('data-user-modified')) {
+                        exerciseWeightInput.value = currentWeight > 0 ? currentWeight : 45;
+                    }
+                    
+                    if (!exerciseWeightInput.hasAttribute('data-has-listener')) {
+                        exerciseWeightInput.setAttribute('data-has-listener', 'true');
+                        exerciseWeightInput.addEventListener('input', function() {
+                            this.setAttribute('data-user-modified', 'true');
+                            currentWeight = parseFloat(this.value);
+                            localStorage.setItem('currentWeight', currentWeight);
+                        });
+                    }
+                }
+            }
         }
         
         console.log('One Rep Max tracking enabled');
@@ -100,152 +115,142 @@ const OneRepMax = (function() {
         isEnabled = false;
         localStorage.setItem('ormEnabled', 'false');
         
-        const toggleButton = document.getElementById('ormToggleButton');
-        if (toggleButton) {
-            toggleButton.innerHTML = '<i class="bx bx-dumbbell"></i> Enable 1RM Tracking';
-            toggleButton.classList.remove('active');
+        const weightInput = document.getElementById('weightInputContainer');
+        if (weightInput) {
+            weightInput.style.display = 'none';
         }
-        
-        removeWeightInput();
         
         document.getElementById('weightToastContainer').innerHTML = '';
         
         console.log('One Rep Max tracking disabled');
     }
     
-    function addWeightInput() {
-        if (document.getElementById('weightInput')) {
-            return;
-        }
-        
-        const inputContainer = document.createElement('div');
-        inputContainer.id = 'weightInput';
-        inputContainer.className = 'weight-input';
-        inputContainer.innerHTML = `
-            <label for="exerciseWeight">Weight:</label>
-            <input type="number" id="exerciseWeight" min="0" step="2.5" value="${currentWeight}">
-            <span class="weight-input-unit">lbs</span>
-        `;
-        
-        const modeBadge = document.getElementById('currentMode');
-        if (modeBadge) {
-            modeBadge.parentNode.insertBefore(inputContainer, modeBadge.nextSibling);
-        } else {
-            const cardHeader = document.querySelector('.card-header');
-            if (cardHeader) {
-                cardHeader.appendChild(inputContainer);
-            }
-        }
-        
-        document.getElementById('exerciseWeight').addEventListener('change', function() {
-            updateWeight(this.value);
-        });
-    }
-    
-    function removeWeightInput() {
-        const input = document.getElementById('weightInput');
-        
-		if (input) {
-            input.remove();
-        }
-    }
-    
-    function updateWeight(weight) {
-        currentWeight = parseFloat(weight);
-        localStorage.setItem('currentWeight', currentWeight);
-        console.log('Weight updated to:', currentWeight);
-    }
-    
     function showWeightReduction() {
-        if (currentWeight <= 10) return;
-        
-        const reducedWeight = Math.max(0, currentWeight - 10);
         const container = document.getElementById('weightToastContainer');
+        if (!container) return;
+        
         container.innerHTML = '';
+        
         const toast = document.createElement('div');
         toast.className = 'weight-toast';
         toast.innerHTML = `
-            <div class="toast-icon"><i class='bx bx-shield-quarter'></i></div>
+            <i class='bx bx-error-circle toast-icon'></i>
             <div class="toast-content">
-                <h4>Form Check</h4>
-                <p>Your form needs improvement. Try reducing the weight by 10 lbs to ${reducedWeight} lbs.</p>
+                <h4>Form Issue Detected</h4>
+                <p>Try reducing the weight for better form.</p>
             </div>
-            <button class="toast-action" onclick="OneRepMax.reduceWeight(${reducedWeight})">Apply</button>
-            <button class="toast-close" onclick="this.parentNode.remove()"><i class='bx bx-x'></i></button>
+            <button class="toast-action" onclick="OneRepMax.reduceWeight()">Reduce</button>
+            <button class="toast-close" onclick="this.parentElement.remove()">
+                <i class='bx bx-x'></i>
+            </button>
         `;
+        
         container.appendChild(toast);
         
-		setTimeout(() => toast.classList.add('show'), 10);
+        setTimeout(() => {
+            toast.classList.add('show');
+        }, 10);
+        
         setTimeout(() => {
             toast.classList.remove('show');
             setTimeout(() => {
-                if (toast.parentNode) {
-                    toast.remove();
-                }
+                toast.remove();
             }, 300);
-        }, 8000);
+        }, 5000);
     }
     
-    function reduceWeight(newWeight) {
+    function reduceWeight() {
         const weightInput = document.getElementById('exerciseWeight');
-        if (weightInput) {
-            weightInput.value = newWeight;
-            updateWeight(newWeight);
-        }
+        if (!weightInput) return;
         
-        document.getElementById('weightToastContainer').innerHTML = '';
+        const currentVal = parseFloat(weightInput.value);
+        if (isNaN(currentVal)) return;
+
+        const reduction = Math.max(currentVal * 0.1, 5);
+        const newWeight = Math.max(5, currentVal - reduction);
+        
+        weightInput.value = newWeight.toFixed(1);
+        weightInput.setAttribute('data-user-modified', 'true');
+        
+        currentWeight = newWeight;
+        localStorage.setItem('currentWeight', currentWeight);
+        
+        const toast = document.querySelector('.weight-toast');
+        if (toast) {
+            toast.classList.remove('show');
+            setTimeout(() => toast.remove(), 300);
+        }
     }
     
     function listenForStatsUpdates() {
         if (typeof socket !== 'undefined') {
             socket.on('update_stats', (data) => {
-                currentReps = data.reps;
-                currentMode = data.mode.toLowerCase();
-                const ormRepsElement = document.getElementById('ormReps');
-                if (ormRepsElement) {
-                    ormRepsElement.textContent = currentReps;
-                }
+                console.log('Received stats update:', data);
                 
-                const isWeighted = isWeightedExercise(currentMode);
-                handleToggleButtonVisibility(isWeighted);
-                
-                if (!isEnabled) return;
-                if (isWeighted) {
-                    addWeightInput();
-                } else {
-                    removeWeightInput();
-                }
-                
-                if (isWeighted && data.form_issues && data.form_issues.length > 0) {
-                    formIssues = true;
+                if (data.reps) {
+                    currentReps = parseInt(data.reps);
                     
-                    if (currentWeight > 10) {
-                        if (!document.querySelector('.weight-toast')) {
-                            showWeightReduction();
+                    const ormRepsElement = document.getElementById('ormReps');
+                    if (ormRepsElement) {
+                        ormRepsElement.textContent = currentReps;
+                    }
+                }
+                
+                const mode = document.getElementById('mode')?.textContent.toLowerCase() || "";
+                currentMode = mode;
+                const isWeighted = isWeightedExercise(mode);
+                
+                const ormContainer = document.getElementById('oneRepMaxContainer');
+                if (ormContainer) {
+                    ormContainer.style.display = isWeighted ? 'block' : 'none';
+                }
+                
+                const weightInput = document.getElementById('weightInputContainer');
+                
+                if (weightInput && isEnabled && isWeighted) {
+                    weightInput.style.display = 'block';
+                    
+                    const exerciseWeightInput = document.getElementById('exerciseWeight');
+                    if (exerciseWeightInput) {
+                        if (!exerciseWeightInput.hasAttribute('data-user-modified') && currentWeight > 0) {
+                            exerciseWeightInput.value = currentWeight;
+                        }
+                        
+                        if (!exerciseWeightInput.hasAttribute('data-has-listener')) {
+                            exerciseWeightInput.setAttribute('data-has-listener', 'true');
+                            exerciseWeightInput.addEventListener('input', function() {
+                                this.setAttribute('data-user-modified', 'true');
+                                currentWeight = parseFloat(this.value);
+                                localStorage.setItem('currentWeight', currentWeight);
+                            });
                         }
                     }
-                } else {
-                    formIssues = false;
+
+                    const dynamicWeightInput = document.getElementById('weightInput');
+                    if (dynamicWeightInput) {
+                        dynamicWeightInput.remove();
+                    }
+                    
+                    if (data.form_issues && data.form_issues.length > 0) {
+                        console.log('Form issues detected:', data.form_issues);
+                        formIssues = true;
+                        
+                        if (exerciseWeightInput) {
+                            currentWeight = parseFloat(exerciseWeightInput.value) || currentWeight;
+                        }
+                        
+                        console.log('Current weight:', currentWeight);
+                        if (currentWeight > 10) {
+                            console.log('Showing weight reduction notification');
+                            showWeightReduction();
+                        }
+                    } else {
+                        formIssues = false;
+                    }
+                } else if (weightInput) {
+                    weightInput.style.display = 'none';
                 }
             });
-        }
-    }
-    
-    function handleToggleButtonVisibility(isWeightedExercise) {
-        removeExistingButtons();
-        
-        if (isWeightedExercise) {
-            addToggleButton();
-            
-            if (isEnabled) {
-                const toggleButton = document.getElementById('ormToggleButton');
-                if (toggleButton) {
-                    toggleButton.innerHTML = '<i class="bx bx-dumbbell"></i> Disable 1RM Tracking';
-                    toggleButton.classList.add('active');
-                }
-            }
-        } else {
-            removeWeightInput();
         }
     }
     
@@ -255,11 +260,16 @@ const OneRepMax = (function() {
             return;
         }
         
+        const weightInput = document.getElementById('exerciseWeight');
+        if (weightInput) {
+            currentWeight = parseFloat(weightInput.value) || 0;
+        }
+        
         if (currentWeight <= 0) {
             alert('Please set a weight value first.');
             return;
         }
-        
+
         if (currentReps <= 0) {
             alert('You need to complete at least 1 rep before calculating One Rep Max.');
             return;
@@ -269,25 +279,25 @@ const OneRepMax = (function() {
         if (ormRepsElement) {
             ormRepsElement.textContent = currentReps;
         }
-        
+
         const ormWeightElement = document.getElementById('ormWeight');
         if (ormWeightElement) {
             ormWeightElement.value = currentWeight;
         }
-        
+
         const modalElement = document.getElementById('oneRepMaxModal');
         if (modalElement) {
             modalElement.style.display = 'block';
         }
     }
-    
+
     function closeModal() {
         const modalElement = document.getElementById('oneRepMaxModal');
         if (modalElement) {
             modalElement.style.display = 'none';
         }
     }
-    
+
     function calculateAndSave() {
         const weightInput = document.getElementById('ormWeight');
         if (!weightInput) return;
@@ -298,7 +308,8 @@ const OneRepMax = (function() {
             alert('Please enter a valid weight');
             return;
         }
-        const oneRepMax = weight*(36/(37-currentReps));
+
+        const oneRepMax = calculateBrzycki(weight, currentReps);
         const ormValueElement = document.getElementById('ormValue');
         const ormResultElement = document.getElementById('ormResult');
         
@@ -308,23 +319,46 @@ const OneRepMax = (function() {
         
         if (ormResultElement) {
             ormResultElement.style.display = 'block';
+
             ormResultElement.classList.add('success');
 
             setTimeout(() => {
                 ormResultElement.classList.remove('success');
             }, 2000);
         }
-        
-        console.log('Saving One Rep Max:', {
-            exercise: currentMode,
-            weight: weight,
-            reps: currentReps,
-            estimated_one_rep_max: oneRepMax
-        });
+
+        saveOneRepMax(weight, currentReps, oneRepMax);
     }
-    
+
     function calculateBrzycki(weight, reps) {
         return weight * (36 / (37 - reps));
+    }
+    
+    async function saveOneRepMax(weight, reps, oneRepMax) {
+        try {
+            const response = await fetch('/api/save-one-rep-max', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    exercise: currentMode,
+                    weight: weight,
+                    reps: reps,
+                    estimated_one_rep_max: oneRepMax
+                })
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                console.log('One rep max saved successfully:', data);
+            } else {
+                console.error('Failed to save one rep max:', data.message);
+            }
+        } catch (error) {
+            console.error('Error saving one rep max:', error);
+        }
     }
     
     return {
@@ -334,9 +368,20 @@ const OneRepMax = (function() {
         reduceWeight: reduceWeight,
         enableFeature: enableFeature,
         disableFeature: disableFeature,
-        toggleFeature: toggleFeature
+        toggleFeature: toggleOneRepMax,
+        updateWeight: function(weight) {
+            if (!isNaN(parseFloat(weight))) {
+                currentWeight = parseFloat(weight);
+                localStorage.setItem('currentWeight', currentWeight);
+            }
+        }
     };
 })();
+
+window.toggleOneRepMax = function() {
+    OneRepMax.toggleFeature();
+};
+
 document.addEventListener('DOMContentLoaded', function() {
     OneRepMax.init();
 });

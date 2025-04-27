@@ -441,60 +441,47 @@ def reset_password(token):
 @login_required
 def dashboard():
     if not current_user.profile:
+        flash('Please complete your profile first.', 'info')
         return redirect(url_for('profile_setup'))
-    
+    try:
+        db.session.refresh(current_user)
+        _ = current_user.subscription
+    except Exception as refresh_err:
+         print(f"Error refreshing user session data: {refresh_err}")
     try:
         thirty_days_ago = datetime.utcnow() - timedelta(days=30)
-        sessions = WorkoutSession.query.filter(
+        sessions_last_30d = WorkoutSession.query.filter(
             WorkoutSession.user_id == current_user.id,
             WorkoutSession.date >= thirty_days_ago,
             WorkoutSession.is_completed == True
-        ).order_by(WorkoutSession.date.desc()).all()
-
+        ).order_by(WorkoutSession.date.asc()).all()
         current_month_start = datetime.utcnow().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-        monthly_sessions = [s for s in sessions if s.date >= current_month_start]
-
-        print(f"Found {len(monthly_sessions)} workouts for current month")
-        for session in monthly_sessions:
-            print(f"Workout: {session.date}, Calories: {session.calories_burned}, Duration: {session.duration}s")
-
-        total_calories = 0
-        total_duration = 0
-        
-        for session in monthly_sessions:
-            if session.calories_burned is not None:
-                total_calories += float(session.calories_burned)
-            if session.duration is not None:
-                total_duration += int(session.duration)
-
-        total_duration_minutes = total_duration // 60
-        
+        monthly_sessions = [s for s in sessions_last_30d if s.date >= current_month_start]
+        total_calories = sum(float(s.calories_burned or 0) for s in monthly_sessions)
+        total_duration_seconds = sum(int(s.duration or 0) for s in monthly_sessions)
+        total_duration_minutes = total_duration_seconds // 60
         stats = {
             'total_calories': round(total_calories, 1),
             'total_duration': total_duration_minutes,
             'workouts_count': len(monthly_sessions),
             'streak': current_user.streak_count or 0
         }
-
-        print(f"Dashboard stats: {stats}")
         workout_data = {
-            'dates': [s.date.strftime('%Y-%m-%d') for s in sessions],
-            'calories': [round(float(s.calories_burned or 0), 1) for s in sessions],
-            'durations': [round(float(s.duration or 0) / 60, 1) if s.duration else 0 for s in sessions]
+            'dates': [s.date.strftime('%Y-%m-%d') for s in sessions_last_30d],
+            'calories': [round(float(s.calories_burned or 0), 1) for s in sessions_last_30d],
+            'durations': [round(float(s.duration or 0) / 60, 1) if s.duration else 0 for s in sessions_last_30d]
         }
-
-        calendar_data = {s.date.strftime('%Y-%m-%d'): s.to_calendar_dict() for s in sessions}
-        
-        return render_template('dashboard.html', 
-                             user=current_user, 
-                             stats=stats,
-                             workout_data=workout_data,
-                             calendar_data=calendar_data)
-                             
+        all_completed_sessions = WorkoutSession.query.filter_by(user_id=current_user.id, is_completed=True).all()
+        calendar_data = {s.date.strftime('%Y-%m-%d'): s.to_calendar_dict() for s in all_completed_sessions}
+        return render_template('dashboard.html', stats=stats, workout_data=workout_data, calendar_data=calendar_data)
     except Exception as e:
         print(f"Dashboard error: {e}")
-        flash('Error loading dashboard data')
-        return redirect(url_for('home'))
+        traceback.print_exc()
+        flash('Error loading dashboard data', 'error')
+        stats = {'total_calories': 0, 'total_duration': 0, 'workouts_count': 0, 'streak': 0}
+        workout_data = {'dates':[], 'calories':[], 'durations':[]}
+        calendar_data = {}
+        return render_template('dashboard.html', stats=stats, workout_data=workout_data, calendar_data=calendar_data)
 
 # Workout routes
 @app.route('/workout')
@@ -1415,32 +1402,41 @@ def add_meal():
             'message': f'Failed to add meal: {str(e)}'
         }), 500
     
-@app.route('/api/export-data', methods=['GET'])
+@app.route('/export-data')
+@login_required
+def export_data_page():
+    return render_template('export_data.html')
+    
+    
+@app.route('/export-data/download', methods=['GET'])
 @login_required
 def export_data():
     try:
-        format_type = request.args.get('format', 'json')
+        # Get parameters from request
+        format_type = request.args.get('format', 'json')  # Default to JSON
         date_from = request.args.get('from')
         date_to = request.args.get('to')
+        
+        # Convert string dates to datetime objects if provided
         from_date = datetime.strptime(date_from, '%Y-%m-%d') if date_from else None
         to_date = datetime.strptime(date_to, '%Y-%m-%d') if date_to else None
-
+        
+        # Build query filters
         filters = [WorkoutSession.user_id == current_user.id, WorkoutSession.is_completed == True]
         if from_date:
             filters.append(WorkoutSession.date >= from_date)
         if to_date:
             filters.append(WorkoutSession.date <= to_date)
-
+        
+        # Query workout data
         workouts = WorkoutSession.query.filter(*filters).order_by(WorkoutSession.date).all()
-
+        
+        # Query BMI history
         bmi_history = BMIHistory.query.filter(
             BMIHistory.user_id == current_user.id
         ).order_by(BMIHistory.date).all()
-
-        orm_history = OneRepMax.query.filter(
-            OneRepMax.user_id == current_user.id
-        ).order_by(OneRepMax.date).all()
-
+        
+        # Create export data object
         export_data = {
             'user': {
                 'name': current_user.name,
@@ -1455,19 +1451,28 @@ def export_data():
                 'export_date': datetime.utcnow().isoformat()
             },
             'workouts': [workout.to_dict() for workout in workouts],
-            'bmi_history': [bmi.to_dict() for bmi in bmi_history],
-            'one_rep_max': [orm.to_dict() for orm in orm_history]
+            'bmi_history': [bmi.to_dict() for bmi in bmi_history]
         }
 
+        # NEW CODE: Add efficiency analysis to the export
+        from workout_analytics import WorkoutEfficiencyAnalyzer
+        analyzer = WorkoutEfficiencyAnalyzer()
+        analyzer.load_from_json(export_data)
+        efficiency_report = analyzer.generate_report()
+        export_data['efficiency_analysis'] = efficiency_report
+        
+        # Format output based on requested format
         if format_type == 'json':
             response = jsonify(export_data)
             response.headers['Content-Disposition'] = f'attachment; filename=pump_chest_data_{current_user.id}.json'
             return response
             
         elif format_type == 'csv':
+            # Create CSV file in memory
             output = io.StringIO()
             csv_writer = csv.writer(output)
-
+            
+            # Write user info
             csv_writer.writerow(['User Data'])
             csv_writer.writerow(['Name', 'Email', 'Age', 'Height', 'Weight', 'Fitness Level'])
             csv_writer.writerow([
@@ -1479,30 +1484,65 @@ def export_data():
                 current_user.profile.fitness_level if current_user.profile else ''
             ])
             csv_writer.writerow([])
+            
+            # Write workout data
             csv_writer.writerow(['Workout History'])
-            csv_writer.writerow(['Date', 'Duration (min)', 'Calories Burned', 'Exercise Reps'])
+            csv_writer.writerow(['Date', 'Duration (min)', 'Calories Burned', 'Exercise Reps', 'Efficiency Score'])
             for workout in workouts:
+                # Find matching efficiency score
+                matching_score = next((w['score'] for w in efficiency_report['detailed_scores'] 
+                                    if w['workout_id'] == workout.id), 'N/A')
+                
                 csv_writer.writerow([
                     workout.date.strftime('%Y-%m-%d %H:%M'),
-                    round(workout.duration / 60) if workout.duration else 0,
+                    round(workout.duration / 60, 1) if workout.duration else 0,
                     round(workout.calories_burned, 1) if workout.calories_burned else 0,
-                    ', '.join([f"{ex}: {reps}" for ex, reps in workout.exercise_data.items() if reps > 0])
+                    ', '.join([f"{ex}: {reps}" for ex, reps in workout.exercise_data.items() if reps > 0]),
+                    matching_score
                 ])
-
+            
+            # Write efficiency summary
+            csv_writer.writerow([])
+            csv_writer.writerow(['Efficiency Analysis'])
+            csv_writer.writerow(['Overall Score', 'Trend', 'Improvement'])
+            csv_writer.writerow([
+                efficiency_report['overall_stats']['avg_score'],
+                efficiency_report['overall_stats']['trend'],
+                f"{efficiency_report['overall_stats']['improvement']}%"
+            ])
+            
+            # Write exercise comparison
+            csv_writer.writerow([])
+            csv_writer.writerow(['Exercise Comparison'])
+            csv_writer.writerow(['Exercise', 'Average Score', 'Intensity', 'Efficiency', 'Count'])
+            for exercise, stats in efficiency_report['exercise_comparison'].items():
+                csv_writer.writerow([
+                    exercise,
+                    stats['avg_score'],
+                    stats['avg_intensity'],
+                    stats['avg_efficiency'],
+                    stats['workout_count']
+                ])
+            
+            # Write recommendations
+            csv_writer.writerow([])
+            csv_writer.writerow(['Recommendations'])
+            for rec in efficiency_report['recommendations']:
+                csv_writer.writerow([rec])
+            
+            # Set headers for download
             response = make_response(output.getvalue())
             response.headers['Content-Disposition'] = f'attachment; filename=pump_chest_data_{current_user.id}.csv'
             response.headers['Content-Type'] = 'text/csv'
             return response
             
-        elif format_type == 'pdf':
-            return jsonify({'error': 'PDF format not yet supported'}), 400
-        
         else:
             return jsonify({'error': 'Unsupported format requested'}), 400
             
     except Exception as e:
         print(f"Error exporting data: {e}")
         return jsonify({'error': 'Failed to export data'}), 500
+
 
 @app.route('/api/share-workout/<int:workout_id>', methods=['POST'])
 @login_required
@@ -1575,6 +1615,44 @@ def get_efficiency_data():
             'message': 'Failed to fetch efficiency data'
         }), 500
 
+@app.route('/api/save-one-rep-max', methods=['POST'])
+@login_required
+def save_one_rep_max():
+    try:
+        data = request.get_json()
+        
+        required_fields = ['exercise', 'weight', 'reps', 'estimated_one_rep_max']
+        for field in required_fields:
+            if field not in data:
+                return jsonify({
+                    'success': False,
+                    'message': f'Missing required field: {field}'
+                }), 400
+        
+        orm = OneRepMax(
+            user_id=current_user.id,
+            exercise=data['exercise'],
+            weight=float(data['weight']),
+            reps=int(data['reps']),
+            estimated_one_rep_max=float(data['estimated_one_rep_max'])
+        )
+        
+        db.session.add(orm)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'One rep max saved successfully',
+            'data': orm.to_dict()
+        })
+        
+    except Exception as e:
+        print(f"Error saving one rep max: {str(e)}")
+        db.session.rollback()
+        return jsonify({
+            'success': False,
+            'message': f'Failed to save one rep max: {str(e)}'
+        }), 500
 
 @app.route('/shared-workout/<token>')
 def view_shared_workout(token):
@@ -1594,11 +1672,6 @@ def view_shared_workout(token):
     user = User.query.get(workout.user_id)
     
     return render_template('shared_workout.html', workout=workout, user=user)
-
-@app.route('/export-data')
-@login_required
-def export_data_page():
-    return render_template('export_data.html')
 
 if __name__ == '__main__':
     with app.app_context():
