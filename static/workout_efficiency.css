@@ -1,0 +1,346 @@
+body {
+    background-color: #000;
+    color: #fff;
+    font-family: -apple-system, system-ui, sans-serif;
+    margin: 0;
+    padding: 0;
+    min-height: 100vh;
+    overflow-x: hidden;
+}
+
+.analytics-container {
+    padding: 7rem 2rem 2rem;
+    max-width: 1400px;
+    margin: 0 auto;
+    position: relative;
+}
+
+.page-header {
+    margin-bottom: 2rem;
+}
+
+.page-title {
+    font-size: 2rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+    color: #fff;
+}
+
+.page-subtitle {
+    color: #777;
+    font-size: 1rem;
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 1rem;
+    margin-bottom: 2rem;
+}
+
+.stat-card {
+    background: #111;
+    border-radius: 10px;
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    border: 1px solid #222;
+}
+
+.stat-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.stat-title {
+    color: #777;
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+.stat-icon {
+    font-size: 1.5rem;
+    color: #45ffca;
+}
+
+.stat-icon.negative {
+    color: #ff5252;
+}
+
+.stat-value {
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: #fff;
+}
+
+.stat-value.negative {
+    color: #ff5252;
+}
+
+.chart-grid {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 1rem;
+    margin-bottom: 2rem;
+}
+
+.chart-card {
+    background: #111;
+    border-radius: 10px;
+    padding: 1.5rem;
+    border: 1px solid #222;
+    height: 400px;
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.chart-card canvas {
+    max-height: 300px !important;
+    height: 100% !important;
+    width: 100% !important;
+    position: relative !important;
+}
+
+.chart-title {
+    font-size: 1.5rem;
+    font-weight: 600;
+    margin-bottom: 1.5rem;
+    color: #fff;
+}
+
+.chart-controls, .chart-selector {
+    margin-bottom: 1rem;
+    z-index: 5;
+    position: relative;
+}
+
+.chart-card .chartjs-size-monitor,
+.chart-card .chartjs-render-monitor {
+    height: 100% !important;
+    width: 100% !important;
+    position: relative !important;
+}
+
+.recommendations-card {
+    background: #111;
+    border-radius: 10px;
+    padding: 1.5rem;
+    border: 1px solid #222;
+    margin-bottom: 2rem;
+}
+
+.recommendations-title {
+    font-size: 1.5rem;
+    font-weight: 600;
+    margin-bottom: 1.5rem;
+    color: #fff;
+}
+
+.recommendations-list {
+    display: grid;
+    gap: 1rem;
+}
+
+.recommendation-item {
+    background: #1a1a1a;
+    border-radius: 8px;
+    padding: 1.2rem;
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    border-left: 3px solid #45ffca;
+}
+
+.recommendation-icon {
+    background: rgba(69, 255, 202, 0.1);
+    color: #45ffca;
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    flex-shrink: 0;
+}
+
+.recommendation-text {
+    flex: 1;
+    line-height: 1.5;
+}
+
+.details-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin-bottom: 2rem;
+}
+
+.detail-card {
+    background: #111;
+    border-radius: 10px;
+    padding: 1.5rem;
+    border: 1px solid #222;
+    max-height: 600px;
+    overflow-y: auto;
+}
+
+.detail-title {
+    font-size: 1.5rem;
+    font-weight: 600;
+    margin-bottom: 1.5rem;
+    color: #fff;
+    position: sticky;
+    top: 0;
+    background: #111;
+    z-index: 1;
+    padding-bottom: 0.5rem;
+}
+
+.data-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: 0.9rem;
+}
+
+.data-table th {
+    text-align: left;
+    padding: 1rem;
+    color: #777;
+    border-bottom: 1px solid #333;
+    font-weight: 500;
+    position: sticky;
+    top: 3.5rem;
+    background: #111;
+    z-index: 1;
+}
+
+.data-table td {
+    padding: 1rem;
+    border-bottom: 1px solid #222;
+}
+
+.data-table tbody tr:hover {
+    background: rgba(255, 255, 255, 0.03);
+}
+
+.exercise-name {
+    color: #45ffca;
+    font-weight: 500;
+}
+
+.category {
+    display: inline-block;
+    padding: 0.3rem 0.8rem;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 500;
+}
+
+.category.excellent {
+    background: rgba(34, 197, 94, 0.1);
+    color: #22c55e;
+}
+
+.category.good {
+    background: rgba(69, 255, 202, 0.1);
+    color: #45ffca;
+}
+
+.category.average {
+    background: rgba(234, 179, 8, 0.1);
+    color: #eab308;
+}
+
+.category.fair, .category.poor {
+    background: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
+}
+
+.metric-item {
+    margin-bottom: 1.5rem;
+}
+
+.metric-header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 0.5rem;
+}
+
+.metric-name {
+    font-weight: 500;
+    color: #fff;
+}
+
+.metric-value {
+    color: #45ffca;
+    font-weight: 600;
+}
+
+.metric-description {
+    color: #777;
+    font-size: 0.9rem;
+    margin-bottom: 0.5rem;
+}
+
+.progress-bar {
+    height: 8px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #45ffca, #32d5a9);
+    border-radius: 4px;
+}
+
+html, body {
+    height: 100%;
+    max-height: 100%;
+}
+
+@media (max-width: 992px) {
+    .chart-grid, .details-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 768px) {
+    .analytics-container {
+        padding: 7rem 1rem 1rem;
+    }
+    
+    .page-title {
+        font-size: 1.8rem;
+    }
+    
+    .stat-value {
+        font-size: 2rem;
+    }
+}
+
+.stats-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 24px;
+}
+
+.stat-card {
+    flex: 1 1 240px;
+    background: #111;
+    border-radius: 12px;
+    padding: 16px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-width: 240px;
+    border: 1px solid #222;
+}

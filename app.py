@@ -1346,6 +1346,159 @@ def reset_password_request():
 
     return render_template('reset_request.html', form=form)
 
+@app.route('/workout-history')
+@login_required
+def workout_history():
+    try:
+        workouts = WorkoutSession.query.filter(
+            WorkoutSession.user_id == current_user.id,
+            WorkoutSession.is_completed == True
+        ).order_by(WorkoutSession.date).all()
+        
+        print(f"Found {len(workouts)} workouts for user {current_user.id}")
+        
+        user_data = {
+            'name': current_user.name,
+            'email': current_user.email,
+            'age': current_user.profile.age if current_user.profile else None,
+            'height': current_user.profile.height if current_user.profile else None,
+            'weight': current_user.profile.weight if current_user.profile else None,
+            'fitness_level': current_user.profile.fitness_level if current_user.profile else 'beginner'
+        }
+        
+        workout_data = []
+        for workout in workouts:
+            workout_dict = {
+                'id': workout.id,
+                'date': workout.date.strftime('%Y-%m-%d'),
+                'duration': workout.duration or 0,
+                'calories_burned': workout.calories_burned or 0,
+                'exercise_data': workout.exercise_data or {}
+            }
+            workout_data.append(workout_dict)
+        
+        try:
+            from workout_analytics import WorkoutEfficiencyAnalyzer
+            analyzer = WorkoutEfficiencyAnalyzer(user_data, workout_data)
+            efficiency_report = analyzer.generate_report()
+            print("Analysis completed successfully")
+            
+            if 'overall_stats' not in efficiency_report:
+                efficiency_report['overall_stats'] = {
+                    'avg_score': 0, 
+                    'trend': 'Stable', 
+                    'improvement': 0, 
+                    'num_workouts': len(workout_data)
+                }
+            
+            if 'detailed_scores' not in efficiency_report:
+                efficiency_report['detailed_scores'] = []
+                
+            if 'recommendations' not in efficiency_report:
+                efficiency_report['recommendations'] = []
+                
+            if 'exercise_comparison' not in efficiency_report:
+                efficiency_report['exercise_comparison'] = {}
+            
+            return render_template('workout_history.html', efficiency=efficiency_report)
+            
+        except ImportError as e:
+            print(f"Import error: {str(e)}")
+            
+            efficiency_scores = []
+            for workout in workout_data:
+                duration_min = max(workout['duration'] / 60, 0.1) 
+                calories = workout['calories_burned']
+                total_reps = sum(workout['exercise_data'].values())
+                
+                intensity = calories / duration_min if duration_min > 0 else 0
+                efficiency = calories / max(total_reps, 1) if total_reps > 0 else 0
+                
+                primary_exercise = 'unknown'
+                if workout['exercise_data']:
+                    primary_exercise = max(workout['exercise_data'].items(), key=lambda x: x[1])[0]
+                
+                score = (intensity * 0.6 + efficiency * 0.4) / 3
+                score = min(max(score, 0), 10)  
+                
+                category = 'Poor'
+                if score >= 8:
+                    category = 'Excellent'
+                elif score >= 6:
+                    category = 'Good'
+                elif score >= 4:
+                    category = 'Average'
+                
+                efficiency_scores.append({
+                    'date': workout['date'],
+                    'score': round(score, 1),
+                    'category': category,
+                    'primary_exercise': primary_exercise,
+                    'efficiency_metrics': {
+                        'intensity': round(intensity, 2),
+                        'efficiency': round(efficiency, 2)
+                    }
+                })
+            
+            avg_score = sum(w['score'] for w in efficiency_scores) / len(efficiency_scores) if efficiency_scores else 0
+            
+            trend = "Stable"
+            improvement = 0
+            if len(efficiency_scores) >= 2:
+                sorted_scores = sorted(efficiency_scores, key=lambda x: x['date'])
+                first_score = sorted_scores[0]['score']
+                last_score = sorted_scores[-1]['score']
+                
+                improvement = round(((last_score - first_score) / max(first_score, 0.1)) * 100, 1)
+                
+                if improvement > 10:
+                    trend = "Improving"
+                elif improvement < -10:
+                    trend = "Declining"
+            
+            recommendations = []
+            if trend == "Declining":
+                recommendations.append("Your workout efficiency is declining. Consider varying your routine or increasing intensity.")
+            elif trend == "Improving":
+                recommendations.append("Your workout efficiency is improving. Keep up the good work!")
+            else:
+                recommendations.append("Your workout efficiency is stable. Consider trying new exercises to improve.")
+            
+            simple_report = {
+                'overall_stats': {
+                    'avg_score': round(avg_score, 1),
+                    'trend': trend,
+                    'improvement': improvement,
+                    'num_workouts': len(efficiency_scores)
+                },
+                'detailed_scores': efficiency_scores,
+                'recommendations': recommendations,
+                'exercise_comparison': {} 
+            }
+            
+            print("Generated simplified efficiency report")
+            return render_template('workout_history.html', efficiency=simple_report)
+            
+    except Exception as e:
+        print(f"Error generating efficiency report: {e}")
+        import traceback
+        traceback.print_exc()
+        
+        dummy_data = {
+            'overall_stats': {
+                'avg_score': 7.5,
+                'trend': 'Stable',
+                'improvement': 0,
+                'num_workouts': 0
+            },
+            'detailed_scores': [],
+            'recommendations': ['Error occurred: ' + str(e)],
+            'exercise_comparison': {}
+        }
+        
+        return render_template('workout_history.html', efficiency=dummy_data)
+
+
 @app.route('/api/bmi-history')
 @login_required
 def get_bmi_history():
@@ -1454,31 +1607,25 @@ def export_data_page():
 @login_required
 def export_data():
     try:
-        # Get parameters from request
-        format_type = request.args.get('format', 'json')  # Default to JSON
+        format_type = request.args.get('format', 'json')
         date_from = request.args.get('from')
         date_to = request.args.get('to')
         
-        # Convert string dates to datetime objects if provided
         from_date = datetime.strptime(date_from, '%Y-%m-%d') if date_from else None
         to_date = datetime.strptime(date_to, '%Y-%m-%d') if date_to else None
         
-        # Build query filters
         filters = [WorkoutSession.user_id == current_user.id, WorkoutSession.is_completed == True]
         if from_date:
             filters.append(WorkoutSession.date >= from_date)
         if to_date:
             filters.append(WorkoutSession.date <= to_date)
         
-        # Query workout data
         workouts = WorkoutSession.query.filter(*filters).order_by(WorkoutSession.date).all()
         
-        # Query BMI history
         bmi_history = BMIHistory.query.filter(
             BMIHistory.user_id == current_user.id
         ).order_by(BMIHistory.date).all()
         
-        # Create export data object
         export_data = {
             'user': {
                 'name': current_user.name,
@@ -1496,25 +1643,21 @@ def export_data():
             'bmi_history': [bmi.to_dict() for bmi in bmi_history]
         }
 
-        # NEW CODE: Add efficiency analysis to the export
         from workout_analytics import WorkoutEfficiencyAnalyzer
         analyzer = WorkoutEfficiencyAnalyzer()
         analyzer.load_from_json(export_data)
         efficiency_report = analyzer.generate_report()
         export_data['efficiency_analysis'] = efficiency_report
         
-        # Format output based on requested format
         if format_type == 'json':
             response = jsonify(export_data)
             response.headers['Content-Disposition'] = f'attachment; filename=pump_chest_data_{current_user.id}.json'
             return response
             
         elif format_type == 'csv':
-            # Create CSV file in memory
             output = io.StringIO()
             csv_writer = csv.writer(output)
             
-            # Write user info
             csv_writer.writerow(['User Data'])
             csv_writer.writerow(['Name', 'Email', 'Age', 'Height', 'Weight', 'Fitness Level'])
             csv_writer.writerow([
@@ -1526,12 +1669,9 @@ def export_data():
                 current_user.profile.fitness_level if current_user.profile else ''
             ])
             csv_writer.writerow([])
-            
-            # Write workout data
             csv_writer.writerow(['Workout History'])
             csv_writer.writerow(['Date', 'Duration (min)', 'Calories Burned', 'Exercise Reps', 'Efficiency Score'])
             for workout in workouts:
-                # Find matching efficiency score
                 matching_score = next((w['score'] for w in efficiency_report['detailed_scores'] 
                                     if w['workout_id'] == workout.id), 'N/A')
                 
@@ -1543,7 +1683,6 @@ def export_data():
                     matching_score
                 ])
             
-            # Write efficiency summary
             csv_writer.writerow([])
             csv_writer.writerow(['Efficiency Analysis'])
             csv_writer.writerow(['Overall Score', 'Trend', 'Improvement'])
@@ -1553,7 +1692,6 @@ def export_data():
                 f"{efficiency_report['overall_stats']['improvement']}%"
             ])
             
-            # Write exercise comparison
             csv_writer.writerow([])
             csv_writer.writerow(['Exercise Comparison'])
             csv_writer.writerow(['Exercise', 'Average Score', 'Intensity', 'Efficiency', 'Count'])
@@ -1566,13 +1704,11 @@ def export_data():
                     stats['workout_count']
                 ])
             
-            # Write recommendations
             csv_writer.writerow([])
             csv_writer.writerow(['Recommendations'])
             for rec in efficiency_report['recommendations']:
                 csv_writer.writerow([rec])
             
-            # Set headers for download
             response = make_response(output.getvalue())
             response.headers['Content-Disposition'] = f'attachment; filename=pump_chest_data_{current_user.id}.csv'
             response.headers['Content-Type'] = 'text/csv'
@@ -1614,48 +1750,6 @@ def share_workout(workout_id):
     except Exception as e:
         print(f"Error sharing workout: {e}")
         return jsonify({'error': 'Failed to share workout'}), 500
-
-
-
-@app.route('/api/efficiency-data')
-@login_required
-def get_efficiency_data():
-    try:
-        days = request.args.get('days', 'all')
-        
-        query = WorkoutSession.query.filter(
-            WorkoutSession.user_id == current_user.id,
-            WorkoutSession.is_completed == True
-        )
-        
-        if days != 'all':
-            days = int(days)
-            cutoff_date = datetime.utcnow() - timedelta(days=days)
-            query = query.filter(WorkoutSession.date >= cutoff_date)
-            
-        workouts = query.order_by(WorkoutSession.date).all()
-        
-        user_data = {
-            'name': current_user.name,
-            'fitness_level': current_user.profile.fitness_level if current_user.profile else 'beginner'
-        }
-        workout_data = [workout.to_dict() for workout in workouts]
-        
-        from workout_analytics import WorkoutEfficiencyAnalyzer
-        analyzer = WorkoutEfficiencyAnalyzer(user_data, workout_data)
-        efficiency_report = analyzer.generate_report()
-        
-        return jsonify({
-            'success': True,
-            'efficiency': efficiency_report
-        })
-        
-    except Exception as e:
-        print(f"Error fetching efficiency data: {e}")
-        return jsonify({
-            'success': False,
-            'message': 'Failed to fetch efficiency data'
-        }), 500
 
 @app.route('/api/save-one-rep-max', methods=['POST'])
 @login_required
