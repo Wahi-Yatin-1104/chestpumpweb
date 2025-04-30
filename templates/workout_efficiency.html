@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Workout Efficiency - Pump Chest</title>
+    <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
+    <link rel="stylesheet" href="/static/styles.css">
+    <link rel="stylesheet" href="/static/workout_efficiency.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <nav class="nav-container">
+        <a href="/" class="logo">Pump <span>Chest</span></a>
+        <div class="nav-btns">
+            <a href="/dashboard" class="btn outline">Dashboard</a>
+            <a href="/logout" class="btn outline">Logout</a>
+        </div>
+    </nav>
+
+    <div class="analytics-container">
+        <div class="page-header">
+            <h1 class="page-title">Workout Efficiency Analysis</h1>
+            <p class="page-subtitle">Advanced metrics to optimize your training</p>
+            
+            <div class="time-filter">
+                <select id="timeRangeFilter">
+                    <option value="30">Last 30 Days</option>
+                    <option value="90">Last 3 Months</option>
+                    <option value="180">Last 6 Months</option>
+                    <option value="all" selected>All Time</option>
+                </select>
+            </div>
+        </div>
+        
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-title">Overall Score</div>
+                <div class="stat-content">
+                    <i class='bx bx-bar-chart-alt-2 stat-icon'></i>
+                    <div class="stat-value" id="overall-score">{{ efficiency.overall_stats.avg_score }}</div>
+                </div>
+            </div>
+            
+            <div class="stat-card">
+                <div class="stat-title">Trend</div>
+                <div class="stat-content">
+                    <i class='bx bx-trending-{{ "up" if efficiency.overall_stats.trend == "Improving" or efficiency.overall_stats.trend == "Strongly improving" else "down" }} stat-icon {{ "negative" if efficiency.overall_stats.trend == "Declining" or efficiency.overall_stats.trend == "Strongly declining" else "" }}'></i>
+                    <div class="stat-value {{ "negative" if efficiency.overall_stats.trend == "Declining" or efficiency.overall_stats.trend == "Strongly declining" else "" }}" id="trend">{{ efficiency.overall_stats.trend }}</div>
+                </div>
+                {% if efficiency.overall_stats.r_squared is defined and efficiency.overall_stats.r_squared is not none %}
+                <div class="stat-badge" title="R² value: how well trend line fits your data">R²: {{ efficiency.overall_stats.r_squared }}</div>
+                {% endif %}
+            </div>
+            
+            <div class="stat-card">
+                <div class="stat-title">Improvement</div>
+                <div class="stat-content">
+                    <i class='bx bx-line-chart stat-icon {{ "negative" if efficiency.overall_stats.improvement < 0 else "" }}'></i>
+                    <div class="stat-value {{ "negative" if efficiency.overall_stats.improvement < 0 else "" }}" id="improvement">{{ efficiency.overall_stats.improvement }}%</div>
+                </div>
+                {% if efficiency.overall_stats.volatility is defined and efficiency.overall_stats.volatility is not none %}
+                <div class="stat-badge" title="Lower volatility means more consistent performance">Volatility: {{ efficiency.overall_stats.volatility }}</div>
+                {% endif %}
+            </div>
+            
+            <div class="stat-card">
+                <div class="stat-title">Workouts Analyzed</div>
+                <div class="stat-content">
+                    <i class='bx bx-calendar-check stat-icon'></i>
+                    <div class="stat-value" id="workouts-count">{{ efficiency.overall_stats.num_workouts }}</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="chart-grid">
+            <div class="chart-card">
+                <h2 class="chart-title">Efficiency Score Timeline</h2>
+                <div class="chart-controls">
+                    <div class="chart-control">
+                        <input type="checkbox" id="showTrendline" checked>
+                        <label for="showTrendline">Show Trendline</label>
+                    </div>
+                    <div class="chart-control">
+                        <input type="checkbox" id="showMovingAverage">
+                        <label for="showMovingAverage">Show Moving Average</label>
+                    </div>
+                </div>
+                <canvas id="efficiencyChart"></canvas>
+            </div>
+            
+            <div class="chart-card">
+                <h2 class="chart-title">Exercise Comparison</h2>
+                <div class="chart-selector">
+                    <select id="chartMetric">
+                        <option value="avg_score">Overall Score</option>
+                        <option value="avg_intensity">Intensity</option>
+                        <option value="avg_efficiency">Efficiency</option>
+                        <option value="avg_density">Density</option>
+                    </select>
+                </div>
+                <canvas id="exerciseChart"></canvas>
+            </div>
+        </div>
+        
+        <div class="recommendations-card">
+            <h2 class="recommendations-title">Personalized Recommendations</h2>
+            <div class="recommendations-list" id="recommendations-list">
+                {% if efficiency.recommendations %}
+                    {% for rec in efficiency.recommendations %}
+                    <div class="recommendation-item">
+                        <div class="recommendation-icon">
+                            <i class='bx {{ rec.icon if rec.icon is defined and rec.icon else "bx-bulb" }}'></i>
+                        </div>
+                        <div class="recommendation-content">
+                            <h3>{{ rec.title if rec.title is defined and rec.title else "" }}</h3>
+                            <p>{% if rec is string %}{{ rec }}{% else %}{{ rec.description if rec.description is defined and rec.description else rec }}{% endif %}</p>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                <div class="recommendation-item">
+                    <div class="recommendation-icon">
+                        <i class='bx bx-info-circle'></i>
+                    </div>
+                    <div class="recommendation-content">
+                        <h3>Keep Training</h3>
+                        <p>Continue your current workout routine to generate personalized recommendations.</p>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <div class="details-grid">
+            <div class="detail-card">
+                <h2 class="detail-title">Exercise Efficiency Breakdown</h2>
+                {% if efficiency.exercise_comparison and efficiency.exercise_comparison|length > 0 %}
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Exercise</th>
+                            <th>Score</th>
+                            <th>Intensity</th>
+                            <th>Efficiency</th>
+                            <th>Density</th>
+                            <th>Count</th>
+                        </tr>
+                    </thead>
+                    <tbody id="exercise-breakdown">
+                        {% for exercise, stats in efficiency.exercise_comparison.items() %}
+                        <tr>
+                            <td class="exercise-name">{{ exercise }}</td>
+                            <td>{{ stats.avg_score }}</td>
+                            <td>{{ stats.avg_intensity }}</td>
+                            <td>{{ stats.avg_efficiency }}</td>
+                            <td>{{ stats.avg_density if stats.avg_density is defined else "N/A" }}</td>
+                            <td>{{ stats.workout_count }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <p class="no-data-message">No exercise data available yet.</p>
+                {% endif %}
+            </div>
+            
+            <div class="detail-card">
+                <h2 class="detail-title">Recommended Exercise Alternatives</h2>
+                {% if recommended_exercises is defined and recommended_exercises %}
+                <div class="alternatives-list">
+                    {% for rec in recommended_exercises %}
+                    <div class="alternative-item">
+                        <div class="current-exercise">
+                            <h3>{{ rec.exercise }}</h3>
+                            <p>Low efficiency exercise</p>
+                        </div>
+                        <div class="alternatives">
+                            <h4>Try Instead:</h4>
+                            <ul>
+                                {% for alt in rec.alternatives %}
+                                <li>{{ alt }}</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="no-data-message">No exercise alternatives needed at this time.</p>
+                {% endif %}
+            </div>
+        </div>
+        
+        <div class="detail-card">
+            <h2 class="detail-title">Workout Details</h2>
+            {% if efficiency.detailed_scores and efficiency.detailed_scores|length > 0 %}
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Exercise</th>
+                        <th>Score</th>
+                        <th>Rating</th>
+                        <th>Intensity</th>
+                        <th>Efficiency</th>
+                        <th>Density</th>
+                    </tr>
+                </thead>
+                <tbody id="workout-details">
+                    {% for workout in efficiency.detailed_scores %}
+                    <tr>
+                        <td>{{ workout.date }}</td>
+                        <td class="exercise-name">{{ workout.primary_exercise }}</td>
+                        <td>{{ workout.score }}</td>
+                        <td><span class="category {{ workout.category|lower }}">{{ workout.category }}</span></td>
+                        <td>{{ workout.efficiency_metrics.intensity }}</td>
+                        <td>{{ workout.efficiency_metrics.efficiency }}</td>
+                        <td>{{ workout.efficiency_metrics.density if workout.efficiency_metrics is defined and workout.efficiency_metrics.density is defined else "N/A" }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <p class="no-data-message">No workout data available yet.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <script>
+        const efficiencyData = {{ efficiency.detailed_scores|tojson }};
+        const exerciseComparison = {{ efficiency.exercise_comparison|tojson }};
+        const overallStats = {{ efficiency.overall_stats|tojson }};
+    </script>
+    <script src="/static/workout_efficiency.js"></script>
+</body>
+</html>

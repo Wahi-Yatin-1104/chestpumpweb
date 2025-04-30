@@ -1,77 +1,119 @@
-from flask import Flask, render_template, Response, jsonify, request, redirect, url_for, flash, session
-from flask_login import LoginManager, login_user, logout_user, login_required, current_user
-from flask_mail import Mail, Message
-from werkzeug.security import generate_password_hash, check_password_hash
-from datetime import datetime, timedelta
 import os
-from dotenv import load_dotenv
 import secrets
-from models import db, User, PasswordReset, UserProfile, WorkoutSession, BMIHistory, MealLog, OneRepMax
-from flask_migrate import Migrate
-import cv2
-import mediapipe as mp
-import numpy as np
 import time
-from flask_socketio import SocketIO, emit
-from forms import ResetPasswordRequestForm, ResetPasswordForm
 import json
-from functools import wraps
-from sqlalchemy import func
-from subscription_middleware import premium_required
-from subscription_routes import subscription_bp
-from flask_cors import CORS
-import stripe
-from dateutil.relativedelta import relativedelta 
 import traceback
 import csv
 import io
-from flask import make_response, send_file
+from io import BytesIO
+import base64 
+from datetime import datetime, timedelta
+from functools import wraps
+
+
+from flask import (
+    Flask, render_template, Response, jsonify, request,
+    redirect, url_for, flash, session, make_response, send_file
+)
+from flask_sqlalchemy import SQLAlchemy 
+from flask_login import (
+    LoginManager, login_user, logout_user, login_required, current_user
+)
+from flask_mail import Mail, Message
+from flask_migrate import Migrate
+from flask_socketio import SocketIO, emit
+from flask_cors import CORS
+from flask_wtf import FlaskForm 
+
+from werkzeug.security import generate_password_hash, check_password_hash
+
+from models import (
+    db, User, UserProfile, WorkoutSession, PasswordReset,
+    BMIHistory, MealLog, Subscription, OneRepMax, ShareableLink 
+)
+
+from forms import (
+    ResetPasswordRequestForm, ResetPasswordForm,
+    ChangeEmailForm, ChangePasswordForm, EditProfileForm, EditGoalsForm 
+)
+
+from subscription_routes import subscription_bp
+from subscription_middleware import premium_required
+
+import cv2
+import mediapipe as mp
+import numpy as np
+import stripe
+from dotenv import load_dotenv
+from dateutil.relativedelta import relativedelta 
+from weasyprint import HTML, CSS 
+from weasyprint.text.fonts import FontConfiguration 
+import matplotlib 
+matplotlib.use('Agg') 
+import matplotlib.pyplot as plt 
+import matplotlib.dates as mdates 
+
+from sqlalchemy import func, desc
+
 
 load_dotenv()
 
-# Initialize Flask 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY')
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 
-# Mail 
 app.config['MAIL_SERVER'] = os.getenv('MAIL_SERVER')
 app.config['MAIL_PORT'] = int(os.getenv('MAIL_PORT', 587))
 app.config['MAIL_USE_TLS'] = os.getenv('MAIL_USE_TLS', 'True') == 'True'
 app.config['MAIL_USERNAME'] = os.getenv('MAIL_USERNAME')
 app.config['MAIL_PASSWORD'] = os.getenv('MAIL_PASSWORD')
 
-
 db.init_app(app)
-mail = Mail(app)
+mail = Mail(app) 
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
 migrate = Migrate(app, db)
 socketio = SocketIO(app) 
-stripe.api_key = os.getenv('STRIPE_SECRET_KEY') # Stripe
+stripe.api_key = os.getenv('STRIPE_SECRET_KEY') 
 
 
-# SocketIO
 socketio = SocketIO(app)
 
-# MediaPipe
 mp_pose = mp.solutions.pose
 mp_draw = mp.solutions.drawing_utils
 
 app.register_blueprint(subscription_bp, url_prefix='/subscription')
 CORS(app)
 
-
-# Global variables for workout tracking
 mode = "sq"
 cnt = 0
 pos = None
-total_reps = {"sq": 0, "cu": 0, "pu": 0, "lu": 0, "pl": 0, "cr": 0}
+total_reps = {
+    "sq": 0, "cu": 0, "pu": 0, "lu": 0, "pl": 0, "cr": 0, "mc": 0, "jj": 0, "bp": 0, "dl": 0, "bp": 0, "op": 0, "br": 0, "fs": 0
+}
 cal_burnt = 0
 workout_start = None
+current_workout_session = None
+
+def workout_session_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        global current_workout_session
+        if current_workout_session is None:
+            return jsonify({'success': False, 'error': 'No active workout session'}), 400
+        return f(*args, **kwargs)
+    return decorated_function
+
+@login_manager.user_loader
+def load_user(user_id):
+    try:
+        return db.session.get(User, int(user_id))
+    except Exception as e:
+        print(f"Error loading user: {e}")
+        return None
 
 def get_ang(a, b, c):
     if not all([a, b, c]): return 0

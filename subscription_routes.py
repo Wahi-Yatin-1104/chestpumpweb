@@ -1,10 +1,12 @@
+
 from flask import Blueprint, request, jsonify, redirect, url_for, render_template, flash
-from models import db, User, Subscription 
+from models import db, User, Subscription
 import stripe
 import os
 from flask_login import login_required, current_user
 from datetime import datetime, timedelta
 import traceback 
+
 
 try:
     from app import app
@@ -13,6 +15,7 @@ except ImportError:
     app = None 
 
 subscription_bp = Blueprint('subscription', __name__)
+
 
 stripe.api_key = os.getenv('STRIPE_SECRET_KEY')
 
@@ -40,7 +43,7 @@ def create_checkout_session():
             mode='subscription',
             success_url=url_for('subscription.subscription_success', _external=True) + '?session_id={CHECKOUT_SESSION_ID}',
             cancel_url=url_for('subscription.subscription_cancel', _external=True),
-            client_reference_id=str(current_user.id) 
+            client_reference_id=str(current_user.id)
         )
         return jsonify({'checkoutUrl': checkout_session.url})
     except stripe.error.StripeError as e:
@@ -50,7 +53,6 @@ def create_checkout_session():
         print(f"General Error during checkout creation: {e}")
         traceback.print_exc()
         return jsonify({'error': 'An unexpected error occurred.'}), 500
-
 
 @subscription_bp.route('/success')
 @login_required
@@ -200,7 +202,7 @@ def reactivate_subscription_request():
         subscription.cancel_at_period_end = False
         subscription.status = 'active'
         subscription.updated_at = datetime.utcnow()
-        user = db.session.get(User, subscription.user_id) # Use session.get if possible
+        user = db.session.get(User, subscription.user_id)
         if user: user.subscription_tier = subscription.plan_type
         db.session.commit()
         flash('Your subscription has been reactivated.', 'success')
@@ -320,10 +322,11 @@ def subscription_updated(subscription_data):
         subscription = Subscription.query.filter_by(stripe_subscription_id=stripe_subscription_id).first()
 
         if subscription:
-            user = db.session.get(User, subscription.user_id) 
+            user = db.session.get(User, subscription.user_id)
             if not user:
                 print(f"Webhook Error: User {subscription.user_id} not found for subscription {stripe_subscription_id}")
                 return
+
 
             new_status = subscription_data.get('status', subscription.status)
             new_cancel_at_period_end = subscription_data.get('cancel_at_period_end', subscription.cancel_at_period_end)
@@ -351,8 +354,8 @@ def subscription_updated(subscription_data):
                     except Exception as refetch_err:
                         print(f"Webhook Error: Failed to refetch subscription {stripe_subscription_id}: {refetch_err}")
 
-            # get plan type
-            new_plan_type = 'free' #
+
+            new_plan_type = 'free' 
             new_price_id = None
             if subscription_data.get('items') and subscription_data['items'].get('data'):
                 try:
@@ -363,14 +366,13 @@ def subscription_updated(subscription_data):
 
             print(f"Webhook: Updating subscription {stripe_subscription_id} -> Status:{new_status}, Plan:{new_plan_type}, Cancel@End:{new_cancel_at_period_end}, PeriodEnd:{new_period_end}")
 
-            # Update the local database record
+
             subscription.status = new_status
-            subscription.current_period_end = new_period_end
+            subscription.current_period_end = new_period_end 
             subscription.plan_type = new_plan_type
             subscription.cancel_at_period_end = new_cancel_at_period_end
             subscription.updated_at = datetime.utcnow()
 
-            # Update tier
             if new_status == 'active' and not new_cancel_at_period_end and new_plan_type == 'premium':
                 user.subscription_tier = 'premium'
             else:
