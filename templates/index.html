@@ -4,10 +4,35 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
-	<link rel="stylesheet" href="/static/styles.css">
-	<link rel="stylesheet" href="/static/animations.css">
-	<link rel="stylesheet" href="/static/effects.css">
+    <link rel="stylesheet" href="/static/styles.css">
+    <link rel="stylesheet" href="/static/animations.css">
+    <link rel="stylesheet" href="/static/effects.css">
     <title>Pump-Chest</title>
+     <style>
+         .price-card.free-plan-card {
+             border-color: #222; 
+             transform: scale(1); 
+             box-shadow: none; 
+         }
+         .free-plan-description {
+             color: var(--text-secondary);
+             font-size: 1rem;
+             margin: 1rem 0 2rem 0; 
+             min-height: 3rem; 
+             text-align: center;
+         }
+         .price-card.featured .price { 
+              font-size: 3.5rem;
+              color: var(--primary);
+              margin: 1rem 0;
+              font-weight: 600;
+         }
+         .price-card.featured .price span { 
+             font-size: 1rem;
+             color: #666;
+             margin-left: 0.25rem;
+         }
+     </style>
 </head>
 <body>
     <nav class="nav-container">
@@ -20,11 +45,15 @@
             <li><a href="#about">About</a></li>
         </ul>
         <div class="nav-btns">
-            <a href="/get-started" class="btn primary">Get Started</a>
+            {% if current_user and current_user.is_authenticated %}
+                <a href="{{ url_for('dashboard') }}" class="btn outline">Dashboard</a>
+                <a href="{{ url_for('logout') }}" class="btn outline">Logout</a>
+            {% else %}
+                 <a href="{{ url_for('login') }}" class="btn outline">Login</a>
+                 <a href="{{ url_for('register') }}" class="btn primary">Sign Up</a>
+            {% endif %}
         </div>
     </nav>
-
-
     <main>
         <section class="hero" id="home">
             <div class="hero-content">
@@ -34,13 +63,8 @@
                             .camera-body { fill: #45ffca; }
                             .lens { fill: none; stroke: #45ffca; stroke-width: 2; }
                             .scan-line { stroke: #45ffca; stroke-width: 2; }
-                            @keyframes scan {
-                                0% { transform: translateY(0); }
-                                100% { transform: translateY(40px); }
-                            }
-                            .scan-line {
-                                animation: scan 2s linear infinite;
-                            }
+                            @keyframes scan { 0% { transform: translateY(0); } 100% { transform: translateY(40px); } }
+                            .scan-line { animation: scan 2s linear infinite; }
                         </style>
                         <rect class="camera-body" x="20" y="30" width="60" height="40" rx="5"/>
                         <circle class="lens" cx="50" cy="50" r="15"/>
@@ -50,162 +74,392 @@
                 <h1 class="animate-fade-up">AI-Powered<br>Form Detection<br>& Heart Rate Tracking</h1>
                 <p class="animate-fade-up delay-1">Perfect your form. Track your progress. Achieve your goals.</p>
                 <div class="features-list animate-fade-up delay-2">
-                    <div class="feature">
-                        <i class='bx bx-camera'></i>
-                        <span>Real-time Form Analysis</span>
-                    </div>
-                    <div class="feature">
-                        <i class='bx bx-heart'></i>
-                        <span>Heart Rate Monitoring</span>
-                    </div>
-                    <div class="feature">
-                        <i class='bx bx-line-chart'></i>
-                        <span>Progress Tracking</span>
-                    </div>
+                    <div class="feature"> <i class='bx bx-camera'></i> <span>Real-time Form Analysis</span> </div>
+                    <div class="feature"> <i class='bx bx-heart'></i> <span>Heart Rate Monitoring</span> </div>
+                    <div class="feature"> <i class='bx bx-line-chart'></i> <span>Progress Tracking</span> </div>
                 </div>
                 <div class="cta-buttons animate-fade-up delay-3">
-                    <a href="/get-started" class="btn primary">Get Started</a>
+                     {% if current_user and current_user.is_authenticated %}
+                           <a href="{{ url_for('dashboard') }}" class="btn primary">Go to Dashboard</a>
+                     {% else %}
+                           <a href="{{ url_for('register') }}" class="btn primary">Get Started Free</a>
+                     {% endif %}
                     <a href="#features" class="btn outline">Learn More</a>
                 </div>
             </div>
             <div class="hero-visual animate-fade-in">
                 <div class="demo-screen">
-                    <div class="demo-overlay"></div>
-                </div>
+                    <svg viewBox="0 0 900 600" xmlns="http://www.w3.org/2000/svg">
+                      <defs>
+                        <filter id="tealGlow" x="-50%" y="-50%" width="200%" height="200%">
+                          <feGaussianBlur stdDeviation="3" result="blur"/>
+                          <feMerge>
+                            <feMergeNode in="blur"/>
+                            <feMergeNode in="SourceGraphic"/>
+                          </feMerge>
+                        </filter>
+                        <filter id="webcamVignette">
+                          <feGaussianBlur stdDeviation="40" />
+                          <feComponentTransfer>
+                            <feFuncA type="linear" slope="1.5" intercept="-0.3" />
+                          </feComponentTransfer>
+                          <feComposite operator="in" in2="SourceGraphic" />
+                          <feComposite operator="over" in2="SourceGraphic" />
+                        </filter>
+                        <filter id="webcamNoise" x="0" y="0" width="100%" height="100%">
+                          <feTurbulence type="fractalNoise" baseFrequency="0.65" numOctaves="3" stitchTiles="stitch" result="noise"/>
+                          <feColorMatrix type="matrix" values="0.05 0 0 0 0 0 0.05 0 0 0 0 0 0.05 0 0 0 0 0 0.1 0" in="noise" result="coloredNoise"/>
+                          <feComposite operator="in" in="coloredNoise" in2="SourceGraphic"/>
+                        </filter>
+                        <pattern id="scanlines" patternUnits="userSpaceOnUse" width="4" height="4" patternTransform="scale(1)">
+                          <line x1="0" y1="1" x2="100%" y2="1" stroke="#ffffff" stroke-width="1" opacity="0.03"/>
+                        </pattern>
+                        <linearGradient id="progressGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                          <stop offset="0%" style="stop-color:#45ffca;stop-opacity:0.7" />
+                          <stop offset="100%" style="stop-color:#45ffca;stop-opacity:1" />
+                        </linearGradient>
+                        <linearGradient id="chartFade" x1="0%" y1="0%" x2="0%" y2="100%">
+                          <stop offset="0%" style="stop-color:#45ffca;stop-opacity:0.3"/>
+                          <stop offset="100%" style="stop-color:#45ffca;stop-opacity:0"/>
+                        </linearGradient>
+                        <linearGradient id="heartbeatGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                          <stop offset="0%" style="stop-color:#45ffca;stop-opacity:0.8" />
+                          <stop offset="100%" style="stop-color:#45ffca;stop-opacity:1" />
+                        </linearGradient>
+                        <path id="heartIcon" d="M 0 -10 C -15 -30, -30 -5, 0 15 C 30 -5, 15 -30, 0 -10 Z" />
+                        <path id="ecgSegment" d="M 0,20
+                            L 40,20
+                            L 50,18
+                            L 60,25
+                            L 70,5
+                            L 80,40
+                            L 90,20
+                            L 120,20
+                            L 160,20
+                            L 170,18
+                            L 180,25
+                            L 190,5
+                            L 200,40
+                            L 210,20
+                            L 240,20" />
+                        <clipPath id="monitorClip">
+                          <rect x="0" y="0" width="800" height="570" rx="20" ry="20" />
+                        </clipPath>
+                      </defs>
+                      <style type="text/css">
+                        text {
+                          font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, sans-serif;
+                          fill: #E0E0E0;
+                        }
+                        .bg { fill: #0A0A0A; }
+                        .card {
+                          fill: #161616;
+                          stroke: rgba(69, 255, 202, 0.15);
+                          stroke-width: 1;
+                          rx: 10;
+                          ry: 10;
+                        }
+                        .card-title {
+                          fill: #E0E0E0;
+                          font-size: 18px;
+                          font-weight: 600;
+                        }
+                        .card-label {
+                          fill: #888;
+                          font-size: 12px;
+                          font-weight: 500;
+                          text-transform: uppercase;
+                          letter-spacing: 0.5px;
+                        }
+                        .card-value {
+                          fill: #45ffca;
+                          font-size: 24px;
+                          font-weight: 600;
+                        }
+                        .card-value-large {
+                          fill: #45ffca;
+                          font-size: 72px;
+                          font-weight: 700;
+                        }
+                        .card-value-positive {
+                          fill: #22c55e;
+                          font-size: 22px;
+                          font-weight: 600;
+                        }
+                        /* WebCam styling */
+                        .webcam-container {
+                          fill: #0D0D0D;
+                          stroke: #333;
+                          stroke-width: 1;
+                          rx: 6;
+                          ry: 6;
+                        }
+                        .webcam-header {
+                          fill: #181818;
+                          rx: 6 6 0 0;
+                          ry: 6 6 0 0;
+                        }
+                        .webcam-rec-dot {
+                          fill: #ff3b30;
+                          animation: blink 2s infinite;
+                        }
+                        @keyframes blink {
+                          0%, 100% { opacity: 1; }
+                          50% { opacity: 0.3; }
+                        }
+                        .primary-color-stroke { stroke: #45ffca; }
+                        .primary-color-fill { fill: #45ffca; }
+                        .faint-stroke { stroke: rgba(69, 255, 202, 0.1); }
+                        .glow-effect { filter: url(#tealGlow); }
+						
+                        @keyframes pulseGlow {
+                          0% { opacity: 0.5; r: 3; }
+                          50% { opacity: 1; r: 4; }
+                          100% { opacity: 0.5; r: 3; }
+                        }
+                        @keyframes drawPath {
+                          to { stroke-dashoffset: 0; }
+                        }
+                        @keyframes fadeIn {
+                          from { opacity: 0; }
+                          to { opacity: 1; }
+                        }
+                        @keyframes heartbeatScroll {
+                          from { transform: translateX(0); }
+                          to { transform: translateX(-240px); }
+                        }
+                        @keyframes scanLineMove {
+                          from { transform: translateY(0); }
+                          to { transform: translateY(570px); }
+                        }
+                        .live-dot {
+                          animation: pulseGlow 1.5s ease-in-out infinite;
+                        }
+                        .heartbeat-container { overflow: hidden; }
+                        .heartbeat-scroll {
+                          animation: heartbeatScroll 4s linear infinite; 
+                        }
+                        .scan-line {
+                          animation: scanLineMove 8s linear infinite;
+                        }
+                        .analytics-line {
+                          stroke-dasharray: 300;
+                          stroke-dashoffset: 300;
+                          animation: drawPath 1.8s ease-out forwards;
+                        }
+                        .analytics-fill {
+                          opacity: 0;
+                          animation: fadeIn 1s ease-in forwards 1s;
+                        }
+
+                        /* Fixed Heart Rate Number Animation */
+                        @keyframes num86 {
+                          0%, 20% { opacity: 1; }
+                          20%, 25% { opacity: 0; }
+                          75%, 100% { opacity: 0; }
+                        }
+                        @keyframes num87a {
+                          0%, 20% { opacity: 0; }
+                          25%, 45% { opacity: 1; }
+                          45%, 50% { opacity: 0; }
+                          75%, 100% { opacity: 0; }
+                        }
+                        @keyframes num88 {
+                          0%, 45% { opacity: 0; }
+                          50%, 70% { opacity: 1; }
+                          70%, 75% { opacity: 0; }
+                          75%, 100% { opacity: 0; }
+                        }
+                        @keyframes num87b {
+                          0%, 70% { opacity: 0; }
+                          75%, 95% { opacity: 1; }
+                          95%, 100% { opacity: 0; }
+                        }
+
+                        .hr-86 { animation: num86 8s infinite; }
+                        .hr-87a { animation: num87a 8s infinite; }
+                        .hr-88 { animation: num88 8s infinite; }
+                        .hr-87b { animation: num87b 8s infinite; }
+                      </style>
+                      <rect width="100%" height="100%" class="bg" />
+                      <g transform="translate(50, 15)">
+                        <rect x="0" y="0" width="800" height="570" rx="20" ry="20" fill="#0d0d11" stroke="#333" stroke-width="2" />
+                        <circle cx="400" cy="12" r="5" fill="#222" stroke="#333" stroke-width="1" />
+                        <rect x="0" y="0" width="800" height="30" rx="20" ry="20" fill="#14141a" />
+                        <circle cx="780" cy="15" r="4" fill="#45ffca" class="live-dot" />
+                        <g clip-path="url(#monitorClip)">
+                          <rect x="0" y="30" width="800" height="570" fill="url(#scanlines)" opacity="0.5" />
+                          <rect x="0" y="0" width="800" height="570" fill="#000" opacity="0.1" filter="url(#webcamNoise)" />
+                          <rect x="0" y="0" width="800" height="570" fill="none" filter="url(#webcamVignette)" />
+                          <rect class="scan-line" x="0" y="0" width="800" height="2" fill="#fff" opacity="0.05" />
+                          <g transform="translate(40, 40)">
+                            <g id="leftColumn">
+                              <rect class="card" width="340" height="380" />
+                              <text x="20" y="40" class="card-title">Live Workout</text>
+                              <circle cx="300" cy="35" r="3.5" class="primary-color-fill live-dot" />
+                              <text x="310" y="40" fill="#45ffca" font-size="12">LIVE</text>
+                              <g transform="translate(30, 60)">
+                                <rect width="280" height="220" class="webcam-container" />
+                                <rect width="280" height="30" class="webcam-header" />
+                                <text x="10" y="20" font-size="12" fill="#999">Camera Feed</text>
+                                <circle cx="260" cy="15" r="4" class="webcam-rec-dot" />
+                                <rect x="0" y="30" width="280" height="190" fill="#111" opacity="0.1" filter="url(#webcamNoise)" />
+                                <g transform="translate(140, 130)">
+                                  <text x="0" y="-60" class="card-label" text-anchor="middle">EXERCISE</text>
+                                  <text x="0" y="-30" class="card-value" font-size="22" text-anchor="middle">Squat</text>
+                                  <text x="0" y="0" class="card-label" text-anchor="middle">REPS</text>
+                                  <text x="0" y="30" class="card-value" font-size="28" text-anchor="middle">15</text>
+                                  <text x="0" y="60" class="card-label" text-anchor="middle">FORM</text>
+                                  <text x="0" y="90" class="card-value" font-size="22" text-anchor="middle" fill="#22c55e">Good</text>
+                                </g>
+                              </g>
+                              <g transform="translate(30, 320)">
+                                <rect width="280" height="16" rx="8" fill="#282828" />
+                                <rect width="196" height="16" rx="8" fill="url(#progressGrad)" />
+                                <text x="15" y="12" fill="#000" font-size="10" font-weight="600">Set Progress: 70%</text>
+                              </g>
+                            </g>
+                            <g id="rightColumn" transform="translate(360, 0)">
+                              <rect class="card" width="360" height="180" />
+                              <text x="20" y="40" class="card-title">Heart Rate</text>
+                              <use href="#heartIcon" x="300" y="100" class="primary-color-fill glow-effect" opacity="0.6">
+                                <animate attributeName="opacity" values="0.6;0.9;0.6" dur="1s" repeatCount="indefinite" />
+                              </use>
+                              <use href="#heartIcon" x="300" y="100" fill="none" class="primary-color-stroke" stroke-width="1.5" />
+
+                              <g transform="translate(120, 110)">
+                                <text class="card-value-large hr-86" text-anchor="middle">86</text>
+                                <text class="card-value-large hr-87a" text-anchor="middle">87</text>
+                                <text class="card-value-large hr-88" text-anchor="middle">88</text>
+                                <text class="card-value-large hr-87b" text-anchor="middle">87</text>
+                              </g>
+
+                              <text x="210" y="110" font-size="20" fill="#888" dominant-baseline="middle" text-anchor="start">BPM</text>
+                              <text x="120" y="150" font-size="18" text-anchor="middle">Zone: <tspan fill="#45ffca">Fat Burn</tspan></text>
+                              <g transform="translate(0, 200)">
+                                <rect class="card" width="360" height="180" />
+                                <text x="20" y="40" class="card-title">Efficiency Trend</text>
+                                <g transform="translate(20, 60)">
+                                  <line x1="0" y1="20" x2="320" y2="20" class="faint-stroke" stroke-dasharray="2 2" />
+                                  <line x1="0" y1="60" x2="320" y2="60" class="faint-stroke" stroke-dasharray="2 2" />
+                                  <line x1="0" y1="100" x2="320" y2="100" class="faint-stroke" />
+                                  <path d="M 0,70 C 40,50 80,60 120,30 S 200,20 240,40 S 280,20 320,30"
+                                        fill="none" stroke="#45ffca" stroke-width="2" class="analytics-line glow-effect" />
+                                  <path d="M 0,70 C 40,50 80,60 120,30 S 200,20 240,40 S 280,20 320,30 L 320,100 L 0,100 Z"
+                                        fill="url(#chartFade)" class="analytics-fill" />
+                                  <circle cx="240" cy="40" r="4" fill="#fff" class="glow-effect">
+                                    <animate attributeName="opacity" values="0.7;1;0.7" dur="2s" repeatCount="indefinite" />
+                                  </circle>
+                                </g>
+                                <g transform="translate(20, 160)">
+                                  <text class="card-label">AVG. SCORE</text>
+                                  <text x="0" y="20" class="card-value">7.8</text>
+                                  <text x="150" y="0" class="card-label">IMPROVEMENT</text>
+                                  <text x="150" y="20" class="card-value-positive">+12%</text>
+                                </g>
+                              </g>
+                            </g>
+                          </g>
+                          <g transform="translate(0, 470)" class="heartbeat-container">
+                            <g>
+                              <line x1="0" y1="0" x2="800" y2="0" stroke="#222" stroke-width="0.5" />
+                              <line x1="0" y1="20" x2="800" y2="20" stroke="#222" stroke-width="0.5" />
+                              <line x1="0" y1="40" x2="800" y2="40" stroke="#222" stroke-width="0.5" />
+                              <line x1="0" y1="60" x2="800" y2="60" stroke="#222" stroke-width="0.5" />
+                              <line x1="0" y1="80" x2="800" y2="80" stroke="#222" stroke-width="0.5" />
+                              <g opacity="0.5">
+                                <line x1="60" y1="0" x2="60" y2="80" stroke="#222" stroke-width="0.2" />
+                                <line x1="120" y1="0" x2="120" y2="80" stroke="#222" stroke-width="0.2" />
+                                <line x1="180" y1="0" x2="180" y2="80" stroke="#222" stroke-width="0.2" />
+                                <line x1="240" y1="0" x2="240" y2="80" stroke="#222" stroke-width="0.5" />
+                                <line x1="300" y1="0" x2="300" y2="80" stroke="#222" stroke-width="0.2" />
+                                <line x1="360" y1="0" x2="360" y2="80" stroke="#222" stroke-width="0.2" />
+                                <line x1="420" y1="0" x2="420" y2="80" stroke="#222" stroke-width="0.2" />
+                                <line x1="480" y1="0" x2="480" y2="80" stroke="#222" stroke-width="0.5" />
+                                <line x1="540" y1="0" x2="540" y2="80" stroke="#222" stroke-width="0.2" />
+                                <line x1="600" y1="0" x2="600" y2="80" stroke="#222" stroke-width="0.2" />
+                                <line x1="660" y1="0" x2="660" y2="80" stroke="#222" stroke-width="0.2" />
+                                <line x1="720" y1="0" x2="720" y2="80" stroke="#222" stroke-width="0.5" />
+                                <line x1="780" y1="0" x2="780" y2="80" stroke="#222" stroke-width="0.2" />
+                              </g>
+                            </g>
+                            <clipPath id="ecgClip">
+                              <rect x="0" y="0" width="800" height="80" />
+                            </clipPath>
+                            <g clip-path="url(#ecgClip)">
+                              <g class="heartbeat-scroll">
+                                <use href="#ecgSegment" x="0" y="20" fill="none" stroke="url(#heartbeatGradient)" stroke-width="3" stroke-linecap="round" class="glow-effect" />
+                                <use href="#ecgSegment" x="240" y="20" fill="none" stroke="url(#heartbeatGradient)" stroke-width="3" stroke-linecap="round" class="glow-effect" />
+                                <use href="#ecgSegment" x="480" y="20" fill="none" stroke="url(#heartbeatGradient)" stroke-width="3" stroke-linecap="round" class="glow-effect" />
+                                <use href="#ecgSegment" x="720" y="20" fill="none" stroke="url(#heartbeatGradient)" stroke-width="3" stroke-linecap="round" class="glow-effect" />
+                                <use href="#ecgSegment" x="960" y="20" fill="none" stroke="url(#heartbeatGradient)" stroke-width="3" stroke-linecap="round" class="glow-effect" />
+                                <use href="#ecgSegment" x="1200" y="20" fill="none" stroke="url(#heartbeatGradient)" stroke-width="3" stroke-linecap="round" class="glow-effect" />
+                              </g>
+                            </g>
+                          </g>
+                        </g>
+                      </g>
+                    </svg>
+                 </div>
             </div>
         </section>
-
-
         <section class="features" id="features">
             <h2 class="section-title animate-fade-up">Advanced Features</h2>
             <div class="features-grid">
-                <div class="feature-card animate-fade-up delay-1">
-                    <i class='bx bx-camera-movie'></i>
-                    <h3>Form Detection</h3>
-                    <p>Real-time AI analysis for perfect form</p>
-                    <div class="feature-hover"></div>
-                </div>
-                <div class="feature-card animate-fade-up delay-2">
-                    <i class='bx bx-heart'></i>
-                    <h3>Heart Rate</h3>
-                    <p>Bluetooth sensor integration</p>
-                    <div class="feature-hover"></div>
-                </div>
-                <div class="feature-card animate-fade-up delay-3">
-                    <i class='bx bx-dumbbell'></i>
-                    <h3>Exercise Library</h3>
-                    <p>Multiple workout types supported</p>
-                    <div class="feature-hover"></div>
-                </div>
-                <div class="feature-card animate-fade-up delay-4">
-                    <i class='bx bx-line-chart'></i>
-                    <h3>Progress Tracking</h3>
-                    <p>Detailed performance analytics</p>
-                    <div class="feature-hover"></div>
-                </div>
+                <div class="feature-card animate-fade-up delay-1"> <i class='bx bx-camera-movie'></i> <h3>Form Detection</h3> <p>Real-time AI analysis for perfect form</p> <div class="feature-hover"></div> </div>
+                <div class="feature-card animate-fade-up delay-2"> <i class='bx bx-heart'></i> <h3>Heart Rate</h3> <p>Bluetooth sensor integration</p> <div class="feature-hover"></div> </div>
+                <div class="feature-card animate-fade-up delay-3"> <i class='bx bx-dumbbell'></i> <h3>Exercise Library</h3> <p>Multiple workout types supported</p> <div class="feature-hover"></div> </div>
+                <div class="feature-card animate-fade-up delay-4"> <i class='bx bx-line-chart'></i> <h3>Progress Tracking</h3> <p>Detailed performance analytics</p> <div class="feature-hover"></div> </div>
             </div>
         </section>
-
-
-        <section class="tracking" id="workout"> 
+        <section class="tracking" id="workout">
             <div class="tracking-background"></div>
             <h2 class="section-title animate-fade-up">Smart Workout Tracking</h2>
             <div class="tracking-content">
                 <div class="tracking-features animate-fade-up delay-1">
-                    <div class="tracking-feature">
-                        <i class='bx bx-check-circle'></i>
-                        <span>Real-time form correction</span>
-                    </div>
-                    <div class="tracking-feature">
-                        <i class='bx bx-check-circle'></i>
-                        <span>Automatic rep counting</span>
-                    </div>
-                    <div class="tracking-feature">
-                        <i class='bx bx-check-circle'></i>
-                        <span>Heart rate zones</span>
-                    </div>
-                    <div class="tracking-feature">
-                        <i class='bx bx-check-circle'></i>
-                        <span>Performance analytics</span>
-                    </div>
+                    <div class="tracking-feature"> <i class='bx bx-check-circle'></i> <span>Real-time form correction</span> </div>
+                    <div class="tracking-feature"> <i class='bx bx-check-circle'></i> <span>Automatic rep counting</span> </div>
+                    <div class="tracking-feature"> <i class='bx bx-check-circle'></i> <span>Heart rate zones</span> </div>
+                    <div class="tracking-feature"> <i class='bx bx-check-circle'></i> <span>Performance analytics</span> </div>
                 </div>
-                <a href="/get-started" class="btn primary animate-fade-up delay-2">Start Training</a>
+                 {% if current_user and current_user.is_authenticated %}
+                      <a href="{{ url_for('workout') }}" class="btn primary animate-fade-up delay-2">Start Training</a>
+                 {% else %}
+                       <a href="{{ url_for('register') }}" class="btn primary animate-fade-up delay-2">Start Training Free</a>
+                 {% endif %}
             </div>
         </section>
-
-
-<section class="pricing" id="pricing">
-    <h2 class="section-title animate-fade-up">Pricing Plans</h2>
-    <div class="pricing-grid">
-        <div class="price-card animate-fade-up delay-1">
-            <div class="price-header">
-                <h3>Basic</h3>
-                <div class="price">$5<span>/month</span></div>
+        <section class="pricing" id="pricing">
+            <h2 class="section-title animate-fade-up">Pricing Plans</h2>
+            <div class="pricing-grid">
+                <div class="price-card free-plan-card animate-fade-up delay-1">
+                    <div class="price-header"> <h3>Free</h3> <p class="free-plan-description">Get started with essential tracking features.</p> </div>
+                    <ul> <li><i class='bx bx-check'></i> Form Detection</li> <li><i class='bx bx-check'></i> Basic Analytics</li> <li><i class='bx bx-check'></i> Exercise Library</li> <li><i class='bx bx-x'></i> Heart Rate Monitoring</li> <li><i class='bx bx-x'></i> Custom Workout Plans</li> </ul>
+                    {% if current_user and current_user.is_authenticated %} <a href="{{ url_for('dashboard') }}" class="btn outline">Your Dashboard</a> {% else %} <a href="{{ url_for('register', plan='free') }}" class="btn outline">Get Started</a> {% endif %}
+                </div>
+                <div class="price-card featured animate-fade-up delay-2">
+                    <div class="popular-tag">Most Popular</div>
+                    <div class="price-header"> <h3>Premium</h3> <div class="price">$15<span>/month</span></div> </div>
+                    <ul> <li><i class='bx bx-check'></i> Advanced Form Analysis</li> <li><i class='bx bx-check'></i> Heart Rate Monitoring</li> <li><i class='bx bx-check'></i> Detailed Analytics</li> <li><i class='bx bx-check'></i> Custom Workout Plans</li> <li><i class='bx bx-check'></i> Priority Support</li> </ul>
+                    {% if current_user and current_user.is_authenticated %} {% if current_user.subscription_tier == 'premium' and current_user.subscription and current_user.subscription.is_active() %} <a href="{{ url_for('membership') }}" class="btn primary">Current Plan</a> {% else %} <a href="{{ url_for('subscription.subscription_plans') }}" class="btn primary">Get Premium</a> {% endif %} {% else %} <a href="{{ url_for('register', plan='premium') }}" class="btn primary">Get Started</a> {% endif %}
+                </div>
             </div>
-            <ul>
-                <li><i class='bx bx-check'></i> Form Detection</li>
-                <li><i class='bx bx-check'></i> Basic Analytics</li>
-                <li><i class='bx bx-check'></i> Exercise Library</li>
-                <li><i class='bx bx-x'></i> Heart Rate Monitoring</li>
-                <li><i class='bx bx-x'></i> Custom Workout Plans</li>
-            </ul>
-            <a href="{{ url_for('register', plan='basic') }}" class="btn outline">Get Started</a>
-        </div>
-        
-        <div class="price-card featured animate-fade-up delay-2">
-            <div class="popular-tag">Most Popular</div>
-            <div class="price-header">
-                <h3>Premium</h3>
-                <div class="price">$15<span>/month</span></div>
-            </div>
-            <ul>
-                <li><i class='bx bx-check'></i> Advanced Form Analysis</li>
-                <li><i class='bx bx-check'></i> Heart Rate Monitoring</li>
-                <li><i class='bx bx-check'></i> Detailed Analytics</li>
-                <li><i class='bx bx-check'></i> Custom Workout Plans</li>
-                <li><i class='bx bx-check'></i> Priority Support</li>
-            </ul>
-            <a href="{{ url_for('register', plan='premium') }}" class="btn primary">Get Started</a>
-        </div>
-    </div>
-</section>
+        </section>
     </main>
-
-
-    <footer class="footer" id="about"> 	
+    <footer class="footer" id="about">
         <div class="footer-content">
             <div class="footer-brand">
                 <h3>Pump Chest</h3>
-                <p>AI-powered workout form detection</p>
-            </div>
+                 <p>Intelligent Fitness Tracking & Form Correction</p>
+                </div>
             <div class="footer-links">
-                <div class="product">
-                    <h4>Product</h4>
-                    <a href="#features">Features</a>
-                    <a href="#pricing">Pricing</a>
-                    <a href="{{ url_for('about') }}">About</a>
-                </div>
-                <div class="support">
-                    <h4>Support</h4>
-                    <a href="{{ url_for('help_center') }}">Help Center</a>
-                    <a href="{{ url_for('contact') }}">Contact</a>
-                    <a href="{{ url_for('privacy_policy') }}">Privacy Policy</a>
-                </div>
+                <div class="product"> <h4>Product</h4> <a href="#features">Features</a> <a href="#pricing">Pricing</a> <a href="/about">About</a> </div>
+                <div class="support"> <h4>Support</h4> <a href="/help">Help Center</a> <a href="/contact">Contact</a> <a href="/privacy-policy">Privacy Policy</a> </div>
             </div>
-            <div class="social-links">
-                <a href="#" class="social-icon"><i class='bx bxl-facebook'></i></a>
-                <a href="#" class="social-icon"><i class='bx bxl-twitter'></i></a>
-                <a href="#" class="social-icon"><i class='bx bxl-instagram'></i></a>
-            </div>
+            <div class="social-links"> <a href="#" class="social-icon"><i class='bx bxl-facebook'></i></a> <a href="#" class="social-icon"><i class='bx bxl-twitter'></i></a> <a href="#" class="social-icon"><i class='bx bxl-instagram'></i></a> </div>
         </div>
-        <div class="footer-bottom">
-            <p>&copy; 2025 Pump Chest - All rights reserved</p>
-        </div>
+        <div class="footer-bottom"> <p>&copy; 2025 Pump Chest - All rights reserved</p> </div>
     </footer>
-
-
     <script src="/static/script.js"></script>
-
-
 </body>
 </html>

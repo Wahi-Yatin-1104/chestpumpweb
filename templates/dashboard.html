@@ -8,8 +8,38 @@
     <link rel="stylesheet" href="/static/styles.css">
     <link rel="stylesheet" href="/static/dashboard.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="/static/effects.css">
+    <style>
+        .plan-badge.free {
+            background: rgba(100, 116, 139, 0.15);
+            color: #cbd5e1;
+            border: 1px solid #475569;
+        }
+        .plan-badge {
+            display: inline-block; padding: 0.4rem 0.8rem; border-radius: 30px;
+            font-weight: 600; font-size: 0.9rem; align-self: flex-start; margin-bottom: 0.5rem;
+            box-shadow: 0 2px 8px rgba(69, 255, 202, 0.2);
+        }
+         .plan-badge.premium {
+             background: rgba(69, 255, 202, 0.15); color: var(--primary); border: 1px solid var(--primary);
+         }
+         .btn-upgrade {
+             align-self: flex-start; background: var(--primary); color: #000; font-weight: 600;
+             padding: 0.7rem 1.5rem; border-radius: 8px; text-decoration: none; transition: all 0.3s ease;
+             display: inline-block; border: none; cursor: pointer; margin-top: 0.5rem; letter-spacing: 0.5px;
+             box-shadow: 0 4px 12px rgba(69, 255, 202, 0.25);
+         }
+         .btn-upgrade:hover { transform: translateY(-3px); box-shadow: 0 6px 18px rgba(69, 255, 202, 0.4); }
+        .alert { padding: 1rem; border-radius: 8px; margin-bottom: 1rem; border: 1px solid transparent; font-size: 0.95rem; }
+        .alert-success { background: rgba(69, 255, 202, 0.1); border-color: var(--primary); color: var(--primary); }
+        .alert-error { background: rgba(239, 68, 68, 0.1); border-color: #ef4444; color: #ef4444; }
+        .alert-warning { background: rgba(234, 179, 8, 0.1); border-color: #eab308; color: #eab308; }
+        .alert-info { background: rgba(59, 130, 246, 0.1); border-color: #3b82f6; color: #3b82f6; }
+
+    </style>
 </head>
 <body>
+
     <nav class="nav-container">
         <a href="/" class="logo">Pump <span>Chest</span></a>
         <div class="nav-btns">
@@ -18,320 +48,140 @@
         </div>
     </nav>
 
-
-
     <div class="dashboard-container">
         <div class="dashboard-header">
-            <h1>Welcome back, {{ user.name }}!</h1>
-            <div class="streak-counter">
-                <i class='bx bxs-flame'></i>
-                <span>{{ user.streak_count }} Day Streak</span>
+            <h1>Welcome back, {{ current_user.name }}!</h1>
+            <div class="dashboard-actions">
+                <button id="refresh-stats-btn" class="btn outline" onclick="fetchDashboardStats()">
+                    <i class='bx bx-refresh'></i> Refresh Stats
+                </button>
+                <a href="/export-data" class="btn outline">
+                    <i class='bx bx-export'></i> Export Data
+                </a>
+                <a href="{{ url_for('workout_history') }}" class="btn outline">
+					<i class='bx bx-bar-chart-alt-2'></i> Workout Efficiency
+				</a>
+                 {% if current_user.streak_count and current_user.streak_count > 0 %}
+                <div class="streak-counter">
+                    <i class='bx bxs-flame'></i>
+                    <span>{{ current_user.streak_count }} Day Streak</span>
+                </div>
+                {% endif %}
             </div>
         </div>
 
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="flash-messages">
+                {% for category, message in messages %}
+                    {% if category != 'error' %}
+                        {% if category == 'success' %}
+                            {% set alert_class = 'alert-success' %}
+                        {% elif category == 'warning' %}
+                             {% set alert_class = 'alert-warning' %}
+                        {% endif %}
+                        <div class="alert {{ alert_class }}">{{ message }}</div>
+                    {% endif %}
+                    {# *** End If Condition *** #}
+                {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
 
 
         <div class="stats-grid">
-    <div class="stat-card">
-        <i class='bx bx-calendar-check'></i>
-        <div class="stat-info">
-            <h3>Workouts This Month</h3>
-            <p id="workouts-count">{{ stats.workouts_count }}</p>
+            <div class="stat-card">
+                <i class='bx bx-calendar-check'></i>
+                <div class="stat-info">
+                    <h3>Workouts This Month</h3>
+                    <p id="workouts-count">{{ stats.workouts_count }}</p>
+                </div>
+            </div>
+            <div class="stat-card">
+                <i class='bx bx-flame'></i>
+                <div class="stat-info">
+                    <h3>Calories Burned</h3>
+                    <p id="total-calories">{{ "%.1f"|format(stats.total_calories) }}</p>
+                </div>
+            </div>
+            <div class="stat-card">
+                <i class='bx bx-time'></i>
+                <div class="stat-info">
+                    <h3>Total Minutes</h3>
+                    <p id="total-duration">{{ stats.total_duration }}</p>
+                </div>
+            </div>
         </div>
-    </div>
-    
-    <div class="stat-card">
-        <i class='bx bx-flame'></i>
-        <div class="stat-info">
-            <h3>Calories Burned</h3>
-            <p id="total-calories">{{ "%.1f"|format(stats.total_calories) }}</p>
-        </div>
-    </div>
-    
-    <div class="stat-card">
-        <i class='bx bx-time'></i>
-        <div class="stat-info">
-            <h3>Total Minutes</h3>
-            <p id="total-duration">{{ stats.total_duration }}</p>
-        </div>
-    </div>
-</div>
 
-<div style="text-align: right; margin-bottom: 10px;">
-    <button id="refresh-stats-btn" class="btn outline">
-        <i class='bx bx-refresh'></i> Refresh Stats
-    </button>
-
-        <a href="/export-data" class="btn outline">
-            <i class='bx bx-export'></i>
-            Export Data
-        </a>
-</div>
+        <script id="workout-data" type="application/json">
+            {{ workout_data|tojson|safe }}
+        </script>
 
         <div class="dashboard-grid">
-            <div class="chart-card">
-                <h3>Workout History</h3>
-                <canvas id="workoutChart"></canvas>
-        </div>
+            <div class="chart-card" style="grid-column: span 2;">
+                <h3>Workout History (Last 30 Days)</h3>
+                 <div style="height: 320px; position: relative;">
+                    <canvas id="workoutChart"></canvas>
+                     <div id="chart-error-message" class="chart-error" style="display: none;"></div>
+                </div>
+            </div>
 
-		<div class="workout-history-section">
-    		<div class="section-header">
-        		<h3>Workout Calendar</h3>
-        		<a href="/workout-history" class="btn outline">Full Calendar</a>
-    		</div>
-
-
-<div class="calendar-widget">
-    <div class="calendar-header">
-        <h4><span id="currentMonth">September</span> <span id="currentYear">2023</span></h4>
-        <div class="calendar-nav">
-            <button onclick="previousMonth()"><i class='bx bx-chevron-left'></i></button>
-            <button onclick="currentMonth()">Today</button>
-            <button onclick="nextMonth()"><i class='bx bx-chevron-right'></i></button>
-        </div>
-    </div>
-
-
-        <div class="weekday-labels">
-            <div class="weekday-label">S</div>
-            <div class="weekday-label">M</div>
-            <div class="weekday-label">T</div>
-            <div class="weekday-label">W</div>
-            <div class="weekday-label">T</div>
-            <div class="weekday-label">F</div>
-            <div class="weekday-label">S</div>
-        </div>
-
-       		<div class="calendar-grid" id="calendarDays">
-        	</div>
-    	</div>
-	</div>
-            
             <div class="profile-overview">
                 <h3>Profile Overview</h3>
                 <div class="profile-stats">
-                    <div class="profile-stat">
-                        <span class="label">Age</span>
-                        <span class="value">{{ user.profile.age }}</span>
-                    </div>
-                    <div class="profile-stat">
-                        <span class="label">Height</span>
-                        <span class="value">{{ user.profile.height }} cm</span>
-                    </div>
-                    <div class="profile-stat">
-                        <span class="label">Weight</span>
-                        <span class="value">{{ user.profile.weight }} kg</span>
-                    </div>
-                    <div class="profile-stat">
-                        <span class="label">Level</span>
-                        <span class="value">{{ user.profile.fitness_level.title() }}</span>
+                    <div class="profile-stat"> <span class="label">Age</span> <span class="value">{{ current_user.profile.age if current_user.profile else 'N/A' }}</span> </div>
+                    <div class="profile-stat"> <span class="label">Height</span> <span class="value">{{ current_user.profile.height if current_user.profile else 'N/A' }} cm</span> </div>
+                    <div class="profile-stat"> <span class="label">Weight</span> <span class="value">{{ current_user.profile.weight if current_user.profile else 'N/A' }} kg</span> </div>
+                    <div class="profile-stat"> <span class="label">Level</span> <span class="value">{{ current_user.profile.fitness_level.title() if current_user.profile else 'N/A' }}</span> </div>
+                </div>
+                <div class="goals-section"> <h4>Your Goals</h4> <p>{{ current_user.profile.goals if current_user.profile and current_user.profile.goals else 'No goals set.' }}</p> </div>
+
+                <div class="subscription-section">
+                     <h4><i class='bx bx-crown'></i> Subscription</h4>
+                    <div class="subscription-status">
+                        {% if current_user.subscription_tier == 'premium' and current_user.subscription and current_user.subscription.is_active() %}
+                            <div class="subscription-content"> <div class="plan-badge premium">Premium</div> {% if current_user.subscription.cancel_at_period_end %} <p class="billing-info info-text"> <i class='bx bx-calendar-x'></i> Access ends: {{ current_user.subscription.current_period_end.strftime('%B %d, %Y') if current_user.subscription.current_period_end else 'Processing...' }} </p> {% elif current_user.subscription.current_period_end %} <p class="billing-info"> <i class='bx bx-calendar-check'></i> Renews: {{ current_user.subscription.current_period_end.strftime('%B %d, %Y') }} </p> {% else %} <p class="billing-info"><i class='bx bx-hourglass'></i> Billing cycle updating...</p> {% endif %} <a href="{{ url_for('membership') }}" class="btn-upgrade">Manage Plan</a> </div>
+                        {% elif current_user.subscription and not current_user.subscription.is_active() %}
+                            <div class="subscription-content"> <div class="plan-badge {{ 'free' if current_user.subscription.plan_type != 'premium' else 'premium' }} status-{{ current_user.subscription.status }}"> {{ current_user.subscription.status.replace('_',' ').title() if current_user.subscription.status else 'Inactive' }} </div> {% if current_user.subscription.status == 'past_due' or current_user.subscription.status == 'unpaid' %} <p class="plan-info warning-text"><i class='bx bx-error-circle'></i> Payment issue. Update via Membership page.</p> <a href="{{ url_for('membership') }}" class="btn-upgrade">Resolve Issue</a> {% elif current_user.subscription.status == 'cancelled' %} <p class="plan-info"><i class='bx bx-info-circle'></i> Subscription cancelled.</p> <a href="{{ url_for('subscription.subscription_plans') }}" class="btn-upgrade">Get Premium</a> {% else %} <p class="plan-info"><i class='bx bx-info-circle'></i> Subscription inactive.</p> <a href="{{ url_for('membership') }}" class="btn-upgrade">Check Status</a> {% endif %} </div>
+                        {% else %}
+                            <div class="subscription-content"> <div class="plan-badge free">Free</div> <p class="plan-info"><i class='bx bx-info-circle'></i> Free plan with basic tracking features.</p> <a href="{{ url_for('subscription.subscription_plans') }}" class="btn-upgrade">Upgrade to Premium</a> </div>
+                        {% endif %}
                     </div>
                 </div>
-                <div class="goals-section">
-                    <h4>Your Goals</h4>
-                    <p>{{ user.profile.goals }}</p>
-                </div>
-                <a href="/profile/edit" class="btn outline">Edit Profile</a>
+
+                <div class="profile-actions">
+                <a href="{{ url_for('profile_settings') }}" class="btn outline">Edit Profile & Settings</a>
+                <a href="{{ url_for('membership') }}" class="btn outline">Membership</a>
             </div>
-        </div>
+            </div>
+
+            <div class="workout-history-section">
+                 <div class="section-header"> <h3>Workout Calendar</h3> <a href="/workout-history" class="btn outline">Full Calendar</a> </div> <div class="calendar-widget"> <div class="calendar-header"> <button onclick="previousMonth()" title="Previous Month"><i class='bx bx-chevron-left'></i></button> <h4><span id="currentMonth">Month</span> <span id="currentYear">Year</span></h4> <button onclick="nextMonth()" title="Next Month"><i class='bx bx-chevron-right'></i></button> </div> <div class="weekday-labels"> <div>S</div><div>M</div><div>T</div><div>W</div><div>T</div><div>F</div><div>S</div> </div> <div class="calendar-grid" id="calendarDays"></div> </div>
+            </div>
+
+            <div class="bmi-overview">
+                 <h3>BMI Calculator</h3> <div class="bmi-calculator"> <div class="input-grid"> <div class="input-group"> <label for="height">Height (cm)</label> <div class="input-with-icon"> <i class='bx bx-ruler'></i> <input type="number" id="height" min="100" max="250" step="0.1" value="{{ current_user.profile.height if current_user.profile else '' }}"> </div> </div> <div class="input-group"> <label for="weight">Weight (kg)</label> <div class="input-with-icon"> <i class='bx bx-dumbbell'></i> <input type="number" id="weight" min="30" max="300" step="0.1" value="{{ current_user.profile.weight if current_user.profile else '' }}"> </div> </div> </div> <button onclick="calculateBMI()" class="btn primary">Calculate BMI</button> <div class="bmi-result" id="bmiResult" style="display: none;"> <div class="result-number"> <span class="label">Your BMI</span> <span class="value" id="bmiValue">0.0</span> </div> <div class="result-category"> <span class="label">Category</span> <span class="category" id="bmiCategory">--</span> </div> </div> </div>
+            </div>
+
+            <div class="nutrition-overview">
+                 <div class="section-header"> <h3>Nutrition Tracking</h3> <button onclick="addMeal()" class="btn outline"> <i class='bx bx-plus'></i> Add Meal </button> </div> <div class="daily-calories"> <div class="progress-ring"> <svg width="200" height="200" viewBox="0 0 200 200"> <circle class="progress-ring-circle-bg" stroke-width="10" fill="transparent" r="90" cx="100" cy="100"/> <circle class="progress-ring-circle" stroke-width="10" fill="transparent" r="90" cx="100" cy="100"/> </svg> <div class="progress-content"> <span id="currentCalories">0</span> <small>/ <span id="calorieGoalValue">{{ current_user.profile.calorie_goal if current_user.profile else '2000' }}</span></small> <div class="label">calories</div> </div> </div> </div> <div class="calorie-goal-settings"> <div class="setting-header"> <h4>Daily Calorie Goal</h4> <button onclick="editCalorieGoal()" class="btn outline btn-small" title="Edit Goal"> <i class='bx bx-edit'></i> </button> </div> <div class="current-goal"> <span id="calorieGoalDisplay">{{ current_user.profile.calorie_goal if current_user.profile else '2000' }}</span> calories/day </div> </div> <div class="macros-grid"> <div class="macro-item"> <div class="macro-icon protein"><i class='bx bx-restaurant' ></i></div> <div class="macro-data"> <span class="value" id="proteinTotal">0g</span> <span class="label">Protein</span> </div> </div> <div class="macro-item"> <div class="macro-icon carbs"><i class='bx bx-bowl-rice'></i></div> <div class="macro-data"> <span class="value" id="carbsTotal">0g</span> <span class="label">Carbs</span> </div> </div> <div class="macro-item"> <div class="macro-icon fats"><i class='bx bx-cheese' ></i></div> <div class="macro-data"> <span class="value" id="fatsTotal">0g</span> <span class="label">Fats</span> </div> </div> </div> <div class="meal-log"> <h4>Today's Meals</h4> <div id="mealList" class="meal-list"> <div class="empty-meals">Loading meals...</div> </div> </div>
+            </div>
+
+        </div> 
+    </div> 
+
+    <div class="modal" id="addMealModal">
+         <div class="modal-content"> <div class="modal-header"> <h3>Add Meal</h3> <button onclick="closeModal('addMealModal')" class="modal-close" title="Close"> <i class='bx bx-x'></i> </button> </div> <form id="mealForm" onsubmit="saveMeal(event)"> <div class="form-group"> <label for="mealType">Meal Type</label> <select id="mealType" required> <option value="breakfast">Breakfast</option> <option value="lunch">Lunch</option> <option value="dinner">Dinner</option> <option value="snack">Snack</option> </select> </div> <div class="form-group"> <label for="foodName">Food Name</label> <input type="text" id="foodName" required placeholder="e.g., Chicken Salad"> </div> <div class="form-group"> <label for="calories">Calories</label> <input type="number" id="calories" required min="0" step="1"> </div> <div class="macros-input"> <div class="form-group"> <label for="proteins">Protein (g)</label> <input type="number" id="proteins" min="0" step="0.1" placeholder="Optional"> </div> <div class="form-group"> <label for="carbs">Carbs (g)</label> <input type="number" id="carbs" min="0" step="0.1" placeholder="Optional"> </div> <div class="form-group"> <label for="fats">Fats (g)</label> <input type="number" id="fats" min="0" step="0.1" placeholder="Optional"> </div> </div> <button type="submit" class="btn primary">Save Meal</button> </form> </div>
+    </div>
+    <div class="modal" id="calorieGoalModal">
+        <div class="modal-content"> <div class="modal-header"> <h3>Update Calorie Goal</h3> <button onclick="closeModal('calorieGoalModal')" class="modal-close" title="Close"> <i class='bx bx-x'></i> </button> </div> <form id="calorieGoalForm" onsubmit="updateCalorieGoal(event)"> <div class="form-group"> <label for="newCalorieGoal">Daily Calorie Goal</label> <div class="input-with-icon"> <i class='bx bx-flame'></i> <input type="number" id="newCalorieGoal" min="1200" max="10000" value="{{ current_user.profile.calorie_goal if current_user.profile else '2000' }}" required> </div> <small class="input-help">Recommended: 1200-4000 calories per day</small> </div> <button type="submit" class="btn primary">Save Goal</button> </form> </div>
     </div>
 
-<script id="calendar-data" type="application/json">
-    {{ calendar_data|tojson|safe }}
-</script>
-
+    <script id="calendar-data" type="application/json">
+        {{ calendar_data|tojson|safe }}
+    </script>
     <script src="/static/dashboard.js"></script>
+    <script src="/static/calendar.js"></script>
 
-<div class="bmi-overview">
-    <h3>BMI Calculator</h3>
-    <div class="bmi-calculator">
-        <div class="input-grid">
-            <div class="input-group">
-                <label for="height">Height (cm)</label>
-                <div class="input-with-icon">
-                    <i class='bx bx-ruler'></i>
-                    <input type="number" id="height" min="100" max="250" step="0.1" 
-                           value="{{ user.profile.height if user.profile else '170' }}">
-                </div>
-            </div>
-            <div class="input-group">
-                <label for="weight">Weight (kg)</label>
-                <div class="input-with-icon">
-                    <i class='bx bx-dumbbell'></i>
-                    <input type="number" id="weight" min="30" max="300" step="0.1" 
-                           value="{{ user.profile.weight if user.profile else '70' }}">
-                </div>
-            </div>
-        </div>
-        <button onclick="calculateBMI()" class="btn primary">Calculate BMI</button>
-        
-        <div class="bmi-result" id="bmiResult" style="display: none;">
-            <div class="result-number">
-                <span class="label">Your BMI</span>
-                <span class="value" id="bmiValue">0.0</span>
-            </div>
-            <div class="result-category">
-                <span class="label">Category</span>
-                <span class="category" id="bmiCategory">--</span>
-            </div>
-        </div>
-    </div>
-</div>
-
-<div class="nutrition-overview">
-    <div class="section-header">
-        <h3>Nutrition Tracking</h3>
-        <button onclick="addMeal()" class="btn outline">
-            <i class='bx bx-plus'></i> Add Meal
-        </button>
-    </div>
-
-<div class="daily-calories">
-    <div class="progress-ring">
-        <svg width="120" height="120" viewBox="0 0 120 120">
-            <circle class="progress-ring-circle-bg" cx="60" cy="60" r="54" />
-            <circle class="progress-ring-circle" cx="60" cy="60" r="54" />
-        </svg>
-        <div class="progress-content">
-            <span id="currentCalories">0</span>
-            <small>/ <span id="calorieGoal">{{ user.profile.calorie_goal }}</span></small>
-            <div class="label">calories</div>
-        </div>
-    </div>
-</div>
-
-
-
-<div class="calorie-goal-settings">
-    <div class="setting-header">
-        <h4>Daily Calorie Goal</h4>
-        <button onclick="editCalorieGoal()" class="btn outline btn-small">
-            <i class='bx bx-edit'></i>
-        </button>
-    </div>
-    <div class="current-goal">
-        <span id="calorieGoal">{{ user.profile.calorie_goal }}</span> calories/day
-    </div>
-</div>
-   
-            <div class="macros-grid">
-                <div class="macro-item">
-                    <div class="macro-icon protein">
-                        <i class='bx bx-cricket-ball'></i>
-                    </div>
-                    <div class="macro-data">
-                        <span class="value" id="proteinTotal">0g</span>
-                        <span class="label">Protein</span>
-                    </div>
-                </div>
-                <div class="macro-item">
-                    <div class="macro-icon carbs">
-                        <i class='bx bx-grain'></i>
-                    </div>
-                    <div class="macro-data">
-                        <span class="value" id="carbsTotal">0g</span>
-                        <span class="label">Carbs</span>
-                    </div>
-                </div>
-                <div class="macro-item">
-                    <div class="macro-icon fats">
-                        <i class='bx bx-droplet'></i>
-                    </div>
-                    <div class="macro-data">
-                        <span class="value" id="fatsTotal">0g</span>
-                        <span class="label">Fats</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="meal-log">
-            <h4>Today's Meals</h4>
-            <div id="mealList" class="meal-list">
-            </div>
-        </div>
-    </div>
-</div>
-
-<div class="modal" id="addMealModal">
-    <div class="modal-content">
-        <div class="modal-header">
-            <h3>Add Meal</h3>
-            <button onclick="closeModal('addMealModal')" class="modal-close">
-                <i class='bx bx-x'></i>
-            </button>
-        </div>
-        
-        <form id="mealForm" onsubmit="saveMeal(event)">
-            <div class="form-group">
-                <label for="mealType">Meal Type</label>
-                <select id="mealType" required>
-                    <option value="breakfast">Breakfast</option>
-                    <option value="lunch">Lunch</option>
-                    <option value="dinner">Dinner</option>
-                    <option value="snack">Snack</option>
-                </select>
-            </div>
-
-            <div class="form-group">
-                <label for="foodName">Food Name</label>
-                <input type="text" id="foodName" required placeholder="e.g., Chicken Salad">
-            </div>
-
-            <div class="form-group">
-                <label for="calories">Calories</label>
-                <input type="number" id="calories" required min="0" step="1">
-            </div>
-
-            <div class="macros-input">
-                <div class="form-group">
-                    <label for="proteins">Protein (g)</label>
-                    <input type="number" id="proteins" min="0" step="0.1">
-                </div>
-
-                <div class="form-group">
-                    <label for="carbs">Carbs (g)</label>
-                    <input type="number" id="carbs" min="0" step="0.1">
-                </div>
-
-                <div class="form-group">
-                    <label for="fats">Fats (g)</label>
-                    <input type="number" id="fats" min="0" step="0.1">
-                </div>
-            </div>
-
-            <button type="submit" class="btn primary">Save Meal</button>
-        </form>
-    </div>
-</div>
-
-
-<div class="modal" id="calorieGoalModal">
-    <div class="modal-content">
-        <div class="modal-header">
-            <h3>Update Calorie Goal</h3>
-            <button onclick="closeModal('calorieGoalModal')" class="modal-close">
-                <i class='bx bx-x'></i>
-            </button>
-        </div>
-        
-        <form id="calorieGoalForm" onsubmit="updateCalorieGoal(event)">
-            <div class="form-group">
-                <label for="newCalorieGoal">Daily Calorie Goal</label>
-                <div class="input-with-icon">
-                    <i class='bx bx-flame'></i>
-                    <input type="number" 
-                           id="newCalorieGoal" 
-                           min="1200" 
-                           max="10000" 
-                           value="{{ user.profile.calorie_goal }}"
-                           required>
-                </div>
-                <small class="input-help">Recommended: 1200-4000 calories per day</small>
-            </div>
-            <button type="submit" class="btn primary">Save Goal</button>
-        </form>
-    </div>
-</div>
 </body>
 </html>

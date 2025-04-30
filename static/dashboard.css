@@ -16,6 +16,33 @@
     color: var(--text);
 }
 
+.dashboard-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
+.dashboard-actions .btn {
+    padding: 0.6rem 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    width: 180px;
+    height: 40px;
+    white-space: nowrap;
+    box-sizing: border-box;
+    font-size: 0.9rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.dashboard-actions .btn i {
+    font-size: 1.1rem;
+}
+
 .streak-counter {
     display: flex;
     align-items: center;
@@ -142,10 +169,10 @@
 }
 
 .workout-history-section {
-    margin-top: 2rem;
+    margin-top: 1.5rem;
     background: var(--card);
     border-radius: 15px;
-    padding: 1.5rem;
+    padding: 1.2rem;
     border: 1px solid #222;
 }
 
@@ -153,30 +180,32 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 1.5rem;
+    margin-bottom: 1rem;
 }
 
 .section-header h3 {
     color: var(--text);
-    font-size: 1.5rem;
+    font-size: 1.25rem;
 }
 
 .calendar-widget {
     background: rgba(17, 17, 17, 0.7);
     border-radius: 10px;
-    padding: 1.5rem;
+    padding: 1rem;
+    max-width: 400px;
+    margin: 0 auto;
 }
 
 .calendar-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 1.5rem;
+    margin-bottom: 1rem;
 }
 
 .calendar-header h4 {
     color: var(--text);
-    font-size: 1.2rem;
+    font-size: 1.1rem;
 }
 
 .calendar-nav {
@@ -189,7 +218,7 @@
     border: none;
     color: var(--primary);
     cursor: pointer;
-    font-size: 1.2rem;
+    font-size: 1rem;
     padding: 0.25rem;
     transition: transform 0.3s ease;
 }
@@ -201,32 +230,33 @@
 .weekday-labels {
     display: grid;
     grid-template-columns: repeat(7, 1fr);
-    gap: 0.5rem;
-    margin-bottom: 0.5rem;
+    gap: 0.25rem;
+    margin-bottom: 0.25rem;
     text-align: center;
 }
 
 .weekday-label {
     color: #666;
-    font-size: 0.8rem;
+    font-size: 0.75rem;
 }
 
 .calendar-grid {
     display: grid;
     grid-template-columns: repeat(7, 1fr);
-    gap: 0.5rem;
+    gap: 0.25rem;
 }
 
 .calendar-day {
     aspect-ratio: 1;
     background: rgba(17, 17, 17, 0.7);
-    border-radius: 8px;
-    padding: 0.25rem;
-    font-size: 0.9rem;
+    border-radius: 6px;
+    padding: 0.15rem;
+    font-size: 0.75rem;
     color: var(--text);
     display: flex;
     flex-direction: column;
     align-items: center;
+    justify-content: center;
     cursor: pointer;
     transition: all 0.3s ease;
 }
@@ -241,11 +271,13 @@
 }
 
 .day-number {
-    margin-bottom: 0.25rem;
+    margin-bottom: 0.1rem;
+    font-weight: 600;
+    font-size: 0.7rem;
 }
 
 .day-info {
-    font-size: 0.7rem;
+    font-size: 0.6rem;
     color: var(--primary);
 }
 
@@ -260,6 +292,17 @@
 
     .calendar-day {
         font-size: 0.8rem;
+    }
+
+    .dashboard-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1rem;
+    }
+    
+    .dashboard-actions {
+        width: 100%;
+        justify-content: flex-start;
     }
 }
 
@@ -389,7 +432,7 @@
 
 .progress-ring {
     position: relative;
-    width: 200px;
+    width: 200px;  
     height: 200px;
     margin: 0 auto;
 }
@@ -544,10 +587,128 @@
     color: var(--primary);
 }
 
+.modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.8);
+    z-index: 1000;
+    backdrop-filter: blur(5px);
+}
+
+.modal-content {
+    position: relative;
+    background: var(--card);
+    margin: 10% auto;
+    padding: 2rem;
+    width: 90%;
+    max-width: 500px;
+    border-radius: 20px;
+    border: 1px solid #222;
+    animation: fadeInUp 0.3s ease;
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+}
+
+.modal-header h3 {
+    color: var(--text);
+    font-size: 1.4rem;
+    font-weight: 600;
+    margin: 0;
+}
+
+.modal-close {
+    background: none;
+    border: none;
+    color: var(--text);
+    font-size: 1.5rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.modal-close:hover {
+    color: var(--primary);
+    transform: rotate(90deg);
+}
+
+#mealForm .form-group {
+    margin-bottom: 1.5rem;
+}
+
+#mealForm label {
+    display: block;
+    color: #777;
+    font-size: 0.9rem;
+    margin-bottom: 0.5rem;
+}
+
+#mealForm input, 
+#mealForm select {
+    width: 100%;
+    padding: 0.75rem;
+    background: rgba(17, 17, 17, 0.7);
+    border: 1px solid #333;
+    border-radius: 8px;
+    color: var(--text);
+    font-size: 1rem;
+    transition: all 0.3s ease;
+}
+
+#mealForm input:focus, 
+#mealForm select:focus {
+    border-color: var(--primary);
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(69, 255, 202, 0.1);
+}
+
+#mealForm .macros-input {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+#mealForm button[type="submit"] {
+    width: 100%;
+    padding: 0.75rem;
+    background: var(--primary);
+    color: #000;
+    border: none;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+#mealForm button[type="submit"]:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(69, 255, 202, 0.2);
+}
+
 .macros-input {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    gap: 0.1rem;
+    gap: 1rem;
     margin-top: 1rem;
 }
 
@@ -603,20 +764,23 @@
 }
 
 .calendar-day.has-workout {
-    background: rgba(69, 255, 202, 0.1);
+    background: rgba(69, 255, 202, 0.05);
     border: 1px solid var(--primary);
 }
 
 .workout-indicator {
-    font-size: 0.8rem;
-    color: var(--primary);
     display: flex;
     align-items: center;
-    gap: 0.25rem;
+    gap: 0.1rem;
+    font-size: 0.6rem;
 }
 
 .workout-indicator i {
-    font-size: 1rem;
+    font-size: 0.6rem;
+}
+
+.calendar-day.empty {
+    visibility: hidden;
 }
 
 .chart-card {
@@ -665,9 +829,112 @@
 }
 
 .progress-content #currentCalories {
-    font-size: 2.5rem;
+    font-size: 2.5rem; 
     font-weight: 700;
     color: var(--primary);
     display: block;
     line-height: 1.2;
+}
+
+.subscription-section {
+    margin-top: 1.5rem;
+    margin-bottom: 1.5rem;
+    padding: 1.2rem;
+    background: rgba(17, 17, 17, 0.5);
+    border-radius: 12px;
+    border-left: 3px solid var(--primary);
+}
+
+.subscription-section h4 {
+    color: var(--text);
+    margin-bottom: 1rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.subscription-section h4 i {
+    color: var(--primary);
+    font-size: 1.2rem;
+}
+
+.subscription-status {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.subscription-content {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.plan-info, .billing-info {
+    color: #999;
+    font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.plan-info i, .billing-info i {
+    color: var(--primary);
+    font-size: 1rem;
+}
+
+.plan-badge {
+    display: inline-block;
+    padding: 0.4rem 0.8rem;
+    border-radius: 30px;
+    background: rgba(69, 255, 202, 0.15);
+    color: var(--primary);
+    font-weight: 600;
+    font-size: 0.9rem;
+    align-self: flex-start;
+    margin-bottom: 0.5rem;
+    box-shadow: 0 2px 8px rgba(69, 255, 202, 0.2);
+}
+
+.btn-upgrade {
+    align-self: flex-start;
+    background: var(--primary);
+    color: #000;
+    font-weight: 600;
+    padding: 0.7rem 1.5rem;
+    border-radius: 8px;
+    text-decoration: none;
+    transition: all 0.3s ease;
+    display: inline-block;
+    border: none;
+    cursor: pointer;
+    margin-top: 0.5rem;
+    letter-spacing: 0.5px;
+    box-shadow: 0 4px 12px rgba(69, 255, 202, 0.25);
+}
+
+.btn-upgrade:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 6px 18px rgba(69, 255, 202, 0.4);
+}
+
+@media (max-width: 768px) {
+    .modal-content {
+        width: 95%;
+        margin: 5% auto;
+        padding: 1.5rem;
+    }
+    
+    #mealForm .macros-input {
+        grid-template-columns: 1fr;
+    }
+}
+.empty-meals {
+    text-align: center;
+    padding: 2rem;
+    color: #666;
+    background: rgba(17, 17, 17, 0.3);
+    border-radius: 10px;
+    border: 1px dashed #333;
 }

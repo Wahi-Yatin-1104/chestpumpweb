@@ -7,6 +7,7 @@
     <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
     <link rel="stylesheet" href="/static/styles.css">
     <link rel="stylesheet" href="/static/export.css">
+    <link rel="stylesheet" href="/static/effects.css">
 </head>
 <body>
     <nav class="nav-container">
@@ -18,73 +19,153 @@
     </nav>
 
     <div class="export-container">
-        <div class="export-card">
-            <h2>Export Your Fitness Data</h2>
-            <p>Download or share your workout history, form data, and heart rate metrics with trainers or healthcare providers.</p>
-            
-            <div class="date-range">
-                <h3>Select Date Range</h3>
-                <div class="date-inputs">
-                    <div class="date-input">
-                        <label for="from-date">From</label>
-                        <input type="date" id="from-date" name="from-date">
-                    </div>
-                    <div class="date-input">
-                        <label for="to-date">To</label>
-                        <input type="date" id="to-date" name="to-date">
+
+        <div class="export-card premium-export {{ 'locked' if not is_premium else '' }}" id="premium-export-card"
+             data-redirect-url="{{ url_for('subscription.subscription_plans') if not is_premium else '' }}">
+
+            <div class="premium-lock-overlay" style="{{ 'display: none;' if is_premium else '' }}">
+                 <div class="lock-icon-container"><i class='bx bxs-lock-alt'></i></div>
+                 <h3>Unlock Premium Reports</h3>
+                 <p class="lock-description">
+                     Get detailed PDF reports with visual summaries, trend charts, efficiency analysis, and personalized insights. Perfect for tracking progress or sharing with a coach.
+                 </p>
+                 <a href="{{ url_for('subscription.subscription_plans') }}" class="btn primary btn-upgrade-overlay">
+                     <i class='bx bxs-crown'></i> Upgrade to Premium
+                 </a>
+            </div>
+
+            <div class="premium-content">
+                 <div class="card-header">
+                     <h2><i class='bx bxs-file-pdf' style="color: var(--primary);"></i> Generate PDF Report</h2>
+                     {# Toggle button for basic options - only shown if premium #}
+                     {% if is_premium %}
+                     <button id="toggle-basic-export" class="btn outline btn-small">
+                         <i class='bx bx-download'></i> Show Raw Data Options
+                     </button>
+                     {% endif %}
+                 </div>
+                 <p>Select the date range and sections to include in your personalized PDF fitness report.</p>
+
+                 <div class="date-range">
+                    <h3>Select Date Range</h3>
+                    <div class="date-inputs">
+                        <div class="date-input">
+                            <label for="from-date-pdf">From</label>
+                            <input type="date" id="from-date-pdf" name="from-date-pdf">
+                        </div>
+                        <div class="date-input">
+                            <label for="to-date-pdf">To</label>
+                            <input type="date" id="to-date-pdf" name="to-date-pdf">
+                        </div>
                     </div>
                 </div>
-            </div>
-            
-            <div class="export-options">
-                <h3>Export Format</h3>
-                <div class="format-options">
-                    <div class="format-option">
-                        <input type="radio" id="format-json" name="format" value="json" checked>
-                        <label for="format-json">
-                            <i class='bx bx-code-curly'></i>
-                            <span>JSON</span>
-                            <small>Raw data format</small>
-                        </label>
-                    </div>
-                    <div class="format-option">
-                        <input type="radio" id="format-csv" name="format" value="csv">
-                        <label for="format-csv">
-                            <i class='bx bx-spreadsheet'></i>
-                            <span>CSV</span>
-                            <small>Spreadsheet format</small>
-                        </label>
+
+                <div class="report-sections">
+                    <h3>Include Sections in Report</h3>
+                    <div class="section-options">
+                        <div class="section-option">
+                            <input type="checkbox" id="include-profile" name="sections" value="profile" checked>
+                            <label for="include-profile"><i class='bx bx-user-circle'></i> Profile Information</label>
+                        </div>
+                         <div class="section-option">
+                            <input type="checkbox" id="include-summary" name="sections" value="summary" checked>
+                            <label for="include-summary"><i class='bx bx-line-chart'></i> Overall Summary</label>
+                        </div>
+                         <div class="section-option">
+                            <input type="checkbox" id="include-workout-chart" name="sections" value="workout_chart" checked>
+                            <label for="include-workout-chart"><i class='bx bx-bar-chart-alt-2'></i> Workout Trends Chart</label>
+                        </div>
+                        <div class="section-option">
+                            <input type="checkbox" id="include-workouts" name="sections" value="workouts" checked>
+                            <label for="include-workouts"><i class='bx bx-calendar-check'></i> Workout History Table</label>
+                        </div>
+                        <div class="section-option">
+                            <input type="checkbox" id="include-efficiency" name="sections" value="efficiency" checked>
+                            <label for="include-efficiency"><i class='bx bx-analyse'></i> Efficiency Analysis Table</label>
+                        </div>
+                         <div class="section-option">
+                            <input type="checkbox" id="include-exercises" name="sections" value="exercises" checked>
+                            <label for="include-exercises"><i class='bx bx-dumbbell'></i> Exercise Comparison Table</label>
+                        </div>
+                        <div class="section-option">
+                            <input type="checkbox" id="include-bmi-chart" name="sections" value="bmi_chart" checked>
+                            <label for="include-bmi-chart"><i class='bx bx-chart'></i> BMI History Chart</label>
+                        </div>
+                         <div class="section-option">
+                            <input type="checkbox" id="include-bmi" name="sections" value="bmi" checked>
+                            <label for="include-bmi"><i class='bx bx-body'></i> BMI History Table</label>
+                        </div>
+                         <div class="section-option">
+                            <input type="checkbox" id="include-orm" name="sections" value="orm" checked>
+                            <label for="include-orm"><i class='bx bx-medal'></i> 1RM History Table</label>
+                        </div>
+                        <div class="section-option">
+                            <input type="checkbox" id="include-nutrition" name="sections" value="nutrition">
+                            <label for="include-nutrition"><i class='bx bx-restaurant'></i> Nutrition Log Table</label>
+                        </div>
+                         <div class="section-option">
+                            <input type="checkbox" id="include-recommendations" name="sections" value="recommendations" checked>
+                            <label for="include-recommendations"><i class='bx bx-bulb'></i> Recommendations</label>
+                        </div>
                     </div>
                 </div>
-            </div>
-            
-            <div class="export-actions">
-                <button id="export-button" class="btn primary">
-                    <i class='bx bx-download'></i>
-                    Export Data
-                </button>
-                <button id="generate-link-button" class="btn outline">
-                    <i class='bx bx-share-alt'></i>
-                    Generate Shareable Link
-                </button>
+
+                <div class="export-actions">
+                    <button id="generate-pdf-button" class="btn primary">
+                        <i class='bx bxs-file-pdf'></i> Generate PDF Report
+                    </button>
+                    <div id="pdf-loading-indicator" style="display: none;"><div class="spinner"></div> Generating...</div>
+                </div>
+                 <div id="pdf-error-message" class="alert alert-error" style="display: none; margin-top: 1rem;"></div>
             </div>
         </div>
-        
-        <div id="share-link-container" class="share-link-container" style="display: none;">
-            <div class="share-link-card">
-                <h3>Shareable Link</h3>
-                <p>Share this link to provide read-only access to your fitness data:</p>
-                <div class="share-link-input">
-                    <input type="text" id="share-link" readonly>
-                    <button id="copy-link" class="btn outline">
-                        <i class='bx bx-copy'></i>
+
+        <div id="basic-export-collapsible" class="basic-export-collapsible" style="{{ 'display: none;' if is_premium else '' }}">
+            <div class="export-card basic-export">
+                 <div class="card-header">
+                     <h2><i class='bx bx-download'></i> Export Raw Data</h2>
+                     {% if is_premium %}
+                         <button id="close-basic-export" class="btn-close" title="Hide Raw Data Options">&times;</button>
+                     {% endif %}
+                 </div>
+                <p>Download your workout history and other raw data in JSON or CSV format.</p>
+
+                <div class="date-range">
+                    <h3>Select Date Range</h3>
+                    <div class="date-inputs">
+                        <div class="date-input">
+                            <label for="from-date-basic">From</label>
+                            <input type="date" id="from-date-basic" name="from-date-basic">
+                        </div>
+                        <div class="date-input">
+                            <label for="to-date-basic">To</label>
+                            <input type="date" id="to-date-basic" name="to-date-basic">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="export-options">
+                    <h3>Export Format</h3>
+                    <div class="format-options">
+                        <div class="format-option">
+                            <input type="radio" id="format-json" name="basic-format" value="json" checked>
+                            <label for="format-json"><i class='bx bx-code-curly'></i><span>JSON</span><small>Raw data format</small></label>
+                        </div>
+                        <div class="format-option">
+                            <input type="radio" id="format-csv" name="basic-format" value="csv">
+                            <label for="format-csv"><i class='bx bx-spreadsheet'></i><span>CSV</span><small>Spreadsheet format</small></label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="export-actions">
+                    <button id="export-basic-button" class="btn primary">
+                        <i class='bx bx-download'></i> Export Raw Data
                     </button>
                 </div>
-                <div class="share-link-expiry">
-                    <span>This link will expire in 7 days</span>
-                </div>
             </div>
         </div>
+
     </div>
 
     <script src="/static/export.js"></script>
