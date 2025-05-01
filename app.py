@@ -471,13 +471,26 @@ def reset_password_request():
 
 @app.route('/reset-password/<token>', methods=['GET', 'POST'])
 def reset_password(token):
-    if request.method == 'POST':
-        new_password = request.form.get('password')
-        return jsonify({
-            'success': True,
-            'message': 'Password updated successfully'
-        })
-    return render_template('reset-password.html')
+    if current_user.is_authenticated:
+        return redirect(url_for('dashboard'))
+        
+    reset_token = PasswordReset.query.filter_by(token=token).first()
+
+    if not reset_token or reset_token.expires_at < datetime.utcnow():
+        flash('Invalid or expired reset token')
+        return redirect(url_for('login'))
+
+    form = ResetPasswordForm()
+    if form.validate_on_submit():
+        user = User.query.get(reset_token.user_id)
+        user.set_password(form.password.data)
+        db.session.delete(reset_token)
+        db.session.commit()
+
+        flash('Your password has been reset')
+        return redirect(url_for('login'))
+
+    return render_template('reset_password.html', form=form)
 
 @app.route('/dashboard')
 @login_required
@@ -524,6 +537,58 @@ def dashboard():
         workout_data = {'dates':[], 'calories':[], 'durations':[]}
         calendar_data = {}
         return render_template('dashboard.html', stats=stats, workout_data=workout_data, calendar_data=calendar_data)
+
+@app.route('/api/workout-efficiency-data')
+@login_required
+def get_workout_efficiency_data():
+    try:
+        days = request.args.get('days', 'all')
+        
+        query = WorkoutSession.query.filter(
+            WorkoutSession.user_id == current_user.id,
+            WorkoutSession.is_completed == True
+        )
+        
+        if days != 'all':
+            days_ago = datetime.utcnow() - timedelta(days=int(days))
+            query = query.filter(WorkoutSession.date >= days_ago)
+            
+        workouts = query.order_by(WorkoutSession.date).all()
+        
+        workout_data = []
+        for workout in workouts:
+            exercise_data = workout.exercise_data or {}
+                
+            date_str = workout.date.strftime('%Y-%m-%d')
+                
+            workout_dict = {
+                'id': workout.id,
+                'date': date_str,
+                'duration': workout.duration,
+                'calories_burned': workout.calories_burned,
+                'exercise_data': exercise_data
+            }
+            workout_data.append(workout_dict)
+            
+        from workout_analytics import WorkoutEfficiencyAnalyzer
+        analyzer = WorkoutEfficiencyAnalyzer()
+        analyzer.user_data = {'fitness_level': current_user.profile.fitness_level if current_user.profile else 'beginner'}
+        analyzer.workout_data = workout_data
+        
+        import random
+        random.seed(42)
+        
+        efficiency_report = analyzer.generate_report()
+        
+        efficiency_report['timestamp'] = int(time.time())
+        
+        return jsonify(efficiency_report)
+        
+    except Exception as e:
+        print(f"Error generating API efficiency data: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
 
 # Workout routes
 @app.route('/workout')
@@ -1629,6 +1694,41 @@ def workout_history():
         
         return render_template('workout_history.html', efficiency=dummy_data)
 
+@app.route('/api/save-bmi', methods=['POST'])
+@login_required
+def save_bmi():
+    try:
+        data = request.get_json()
+        height = float(data.get('height'))
+        weight = float(data.get('weight'))
+        bmi = float(data.get('bmi'))
+        
+        bmi_record = BMIHistory(
+            user_id=current_user.id,
+            height=height,
+            weight=weight,
+            bmi=bmi
+        )
+        db.session.add(bmi_record)
+        
+        if current_user.profile:
+            current_user.profile.height = height
+            current_user.profile.weight = weight
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'BMI data saved successfully'
+        })
+        
+    except Exception as e:
+        print(f"Error saving BMI data: {e}")
+        db.session.rollback()
+        return jsonify({
+            'success': False,
+            'message': 'Failed to save BMI data'
+        }), 500
 
 @app.route('/api/bmi-history')
 @login_required
@@ -1727,7 +1827,297 @@ def add_meal():
             'success': False,
             'message': f'Failed to add meal: {str(e)}'
         }), 500
-    
+
+@app.route('/profile/settings', methods=['GET', 'POST'])
+@login_required
+def profile_settings():
+    change_email_form = ChangeEmailForm()
+    change_password_form = ChangePasswordForm()
+    edit_profile_form = EditProfileForm(obj=current_user.profile) 
+    edit_goals_form = EditGoalsForm(obj=current_user.profile) 
+
+    if request.method == 'POST':
+        if change_email_form.submit_email.data and change_email_form.validate_on_submit():
+            new_email = change_email_form.new_email.data
+            password = change_email_form.password.data
+
+            if not current_user.check_password(password):
+                flash('Incorrect password.', 'error')
+            elif User.query.filter(User.email == new_email, User.id != current_user.id).first():
+                flash('That email address is already registered.', 'error')
+            else:
+                try:
+                    current_user.email = new_email
+                    db.session.commit()
+                    flash('Email address updated successfully!', 'success')
+                    return redirect(url_for('profile_settings'))
+                except Exception as e:
+                    db.session.rollback()
+                    print(f"Error changing email: {e}")
+                    flash('An error occurred while changing your email.', 'error')
+
+        elif change_password_form.submit_password.data and change_password_form.validate_on_submit():
+            current_password = change_password_form.current_password.data
+            new_password = change_password_form.new_password.data
+
+            if not current_user.check_password(current_password):
+                flash('Incorrect current password.', 'error')
+            else:
+                try:
+                    current_user.set_password(new_password)
+                    db.session.commit()
+                    flash('Password updated successfully!', 'success')
+                    return redirect(url_for('profile_settings'))
+                except Exception as e:
+                    db.session.rollback()
+                    print(f"Error changing password: {e}")
+                    flash('An error occurred while changing your password.', 'error')
+
+        elif edit_profile_form.submit_profile.data and edit_profile_form.validate_on_submit():
+            profile = current_user.profile
+            if not profile:
+                 profile = UserProfile(user_id=current_user.id)
+                 db.session.add(profile)
+
+            try:
+                profile.age = edit_profile_form.age.data
+                profile.height = edit_profile_form.height.data
+                profile.weight = edit_profile_form.weight.data
+                profile.fitness_level = edit_profile_form.fitness_level.data
+                profile.updated_at = datetime.utcnow()
+                db.session.commit()
+                flash('Profile information updated successfully!', 'success')
+                return redirect(url_for('profile_settings'))
+            except Exception as e:
+                db.session.rollback()
+                print(f"Error updating profile info: {e}")
+                flash('An error occurred while updating your profile information.', 'error')
+
+        elif edit_goals_form.submit_goals.data and edit_goals_form.validate_on_submit():
+            profile = current_user.profile
+            if not profile:
+                 profile = UserProfile(user_id=current_user.id)
+                 db.session.add(profile)
+
+            try:
+                profile.goals = edit_goals_form.goals.data
+                profile.updated_at = datetime.utcnow()
+                db.session.commit()
+                flash('Fitness goals updated successfully!', 'success')
+                return redirect(url_for('profile_settings'))
+            except Exception as e:
+                db.session.rollback()
+                print(f"Error updating goals: {e}")
+                flash('An error occurred while updating your fitness goals.', 'error')
+
+
+    return render_template('profile_settings.html',
+                           change_email_form=change_email_form,
+                           change_password_form=change_password_form,
+                           edit_profile_form=edit_profile_form,
+                           edit_goals_form=edit_goals_form)
+
+if __name__ == '__main__':
+    with app.app_context():
+        try:
+            db.create_all() # 
+        except Exception as e:
+            print(f"Database initialization error: {e}")
+    app.run(debug=True, use_reloader=False)
+
+
+
+@app.route('/api/update-calorie-goal', methods=['POST'])
+@login_required
+def update_calorie_goal():
+    try:
+        data = request.get_json()
+        print(f"Received calorie goal update request: {data}")
+        
+        new_goal = data.get('calorie_goal')
+        print(f"New goal value: {new_goal}, type: {type(new_goal)}")
+        
+        if not new_goal or not isinstance(new_goal, int):
+            return jsonify({
+                'success': False,
+                'message': 'Invalid calorie goal'
+            }), 400
+            
+        if new_goal < 1200 or new_goal > 10000:
+            return jsonify({
+                'success': False,
+                'message': 'Calorie goal must be between 1200 and 10000'
+            }), 400
+        
+        if not current_user.profile:
+            print(f"Creating new profile for user {current_user.id}")
+            profile = UserProfile(
+                user_id=current_user.id,
+                calorie_goal=new_goal
+            )
+            db.session.add(profile)
+            db.session.commit()
+            print(f"Created new profile with calorie goal {new_goal}")
+            return jsonify({
+                'success': True,
+                'message': 'Profile created with calorie goal'
+            })
+        
+        current_user.profile.calorie_goal = new_goal
+        db.session.commit()
+        print(f"Updated calorie goal to {new_goal} for user {current_user.id}")
+        
+        return jsonify({
+            'success': True,
+            'message': 'Calorie goal updated successfully'
+        })
+        
+    except Exception as e:
+        print(f"Error updating calorie goal: {e}")
+        import traceback
+        print(traceback.format_exc())
+        db.session.rollback()
+        return jsonify({
+            'success': False,
+            'message': f'Server error updating calorie goal: {str(e)}'
+        }), 500
+
+@app.route('/export-data/generate-pdf-report', methods=['POST'])
+@login_required
+@premium_required
+def generate_pdf_report():
+    try:
+        data = request.get_json()
+        from_date_str = data.get('from_date')
+        to_date_str = data.get('to_date')
+        sections = data.get('sections', [])
+
+        from_date = datetime.strptime(from_date_str, '%Y-%m-%d') if from_date_str else None
+        to_date = datetime.strptime(to_date_str, '%Y-%m-%d').replace(hour=23, minute=59, second=59) if to_date_str else None
+
+        report_data = {
+            'user_name': current_user.name,
+            'report_date': datetime.utcnow().strftime('%B %d, %Y'),
+            'from_date': from_date.strftime('%Y-%m-%d') if from_date else 'Start',
+            'to_date': to_date.strftime('%Y-%m-%d') if to_date else 'Now',
+            'sections': sections,
+            'profile': None,
+            'summary': None,
+            'workouts': None,
+            'workout_chart': None,
+            'efficiency': None,
+            'exercises': None,
+            'bmi': None,
+            'bmi_chart': None,
+            'orm': None,
+            'nutrition': None,
+            'recommendations': None
+        }
+
+        workout_filters = [WorkoutSession.user_id == current_user.id, WorkoutSession.is_completed == True]
+        bmi_filters = [BMIHistory.user_id == current_user.id]
+        nutrition_filters = [MealLog.user_id == current_user.id]
+        orm_filters = [OneRepMax.user_id == current_user.id]
+
+        if from_date:
+            workout_filters.append(WorkoutSession.date >= from_date)
+            bmi_filters.append(BMIHistory.date >= from_date)
+            nutrition_filters.append(MealLog.date >= from_date)
+            orm_filters.append(OneRepMax.date >= from_date)
+        if to_date:
+            workout_filters.append(WorkoutSession.date <= to_date)
+            bmi_filters.append(BMIHistory.date <= to_date)
+            nutrition_filters.append(MealLog.date <= to_date)
+            orm_filters.append(OneRepMax.date <= to_date)
+
+        if 'profile' in sections and current_user.profile:
+            report_data['profile'] = {
+                'Age': current_user.profile.age,
+                'Height (cm)': current_user.profile.height,
+                'Weight (kg)': current_user.profile.weight,
+                'Fitness Level': current_user.profile.fitness_level.title(),
+                'Goals': current_user.profile.goals or 'Not set'
+            }
+
+        if any(s in sections for s in ['summary', 'workouts', 'workout_chart', 'efficiency', 'exercises', 'recommendations']):
+            workouts = WorkoutSession.query.filter(*workout_filters).order_by(WorkoutSession.date.asc()).all()
+            report_data['workouts'] = [w.to_calendar_dict() for w in workouts]
+
+            if 'workout_chart' in sections and workouts:
+                sorted_workouts = sorted(workouts, key=lambda w: w.date)
+                
+                chart_dates = [w.date.strftime('%Y-%m-%d') for w in sorted_workouts]
+                chart_calories = [float(w.calories_burned or 0) for w in sorted_workouts]
+                chart_durations = [float(w.duration or 0) / 60 for w in sorted_workouts]
+                
+                report_data['workout_chart_calories'] = generate_trend_chart(
+                    chart_dates, chart_calories, 'Calories Burned Over Time', 'Calories')
+                
+                report_data['workout_chart_duration'] = generate_trend_chart(
+                    chart_dates, chart_durations, 'Workout Duration Over Time', 'Minutes', 
+                    color='#3b82f6')
+
+            if any(s in sections for s in ['summary', 'efficiency', 'exercises', 'recommendations']):
+                try:
+                    from workout_analytics import WorkoutEfficiencyAnalyzer
+                    user_info = { 'fitness_level': current_user.profile.fitness_level if current_user.profile else 'beginner' }
+                    workout_list_for_analysis = [w.to_dict() for w in sorted(workouts, key=lambda x: x.date, reverse=True)]
+                    analyzer = WorkoutEfficiencyAnalyzer(user_data=user_info, workout_data=workout_list_for_analysis)
+                    efficiency_report = analyzer.generate_report()
+                    report_data['summary'] = efficiency_report.get('overall_stats')
+                    report_data['efficiency'] = efficiency_report.get('detailed_scores')
+                    report_data['exercises'] = efficiency_report.get('exercise_comparison')
+                    report_data['recommendations'] = efficiency_report.get('recommendations')
+                except ImportError:
+                    if 'summary' in sections:
+                        report_data['summary'] = {'error': 'Analysis unavailable'}
+                except Exception as analysis_err:
+                    if 'summary' in sections:
+                        report_data['summary'] = {'error': 'Analysis error'}
+
+        if 'bmi' in sections or 'bmi_chart' in sections:
+            bmi_records = BMIHistory.query.filter(*bmi_filters).order_by(BMIHistory.date.asc()).all()
+            if 'bmi' in sections:
+                report_data['bmi'] = [r.to_dict() for r in reversed(bmi_records)]
+            if 'bmi_chart' in sections and bmi_records:
+                bmi_dates = [r.date.strftime('%Y-%m-%d') for r in bmi_records]
+                bmi_values = [r.bmi for r in bmi_records]
+                report_data['bmi_chart'] = generate_trend_chart(bmi_dates, bmi_values, 'BMI Over Time', 'BMI', color='#ef4444')
+
+        if 'orm' in sections:
+            report_data['orm'] = [r.to_dict() for r in OneRepMax.query.filter(*orm_filters).order_by(desc(OneRepMax.date)).limit(30).all()]
+
+        if 'nutrition' in sections:
+            report_data['nutrition'] = [m.to_dict() for m in MealLog.query.filter(*nutrition_filters).order_by(desc(MealLog.date)).limit(100).all()]
+
+        html_string = render_template('pdf_report_template.html', data=report_data)
+        page_css = CSS(string='''
+            @page {
+                size: A4;
+                margin: 1.5cm;
+                @bottom-center {
+                    content: "Page " counter(page) " of " counter(pages);
+                    font-size: 9pt;
+                    color: #666;
+                }
+            }
+        ''')
+
+        base_url = request.url_root
+        html = HTML(string=html_string, base_url=base_url)
+        pdf_bytes = html.write_pdf(stylesheets=[page_css])
+
+        response = make_response(pdf_bytes)
+        response.headers['Content-Type'] = 'application/pdf'
+        report_date_filename = datetime.utcnow().strftime('%Y%m%d')
+        response.headers['Content-Disposition'] = f'attachment; filename=Pump_Chest_Report_{report_date_filename}.pdf'
+
+        return response
+
+    except Exception as e:
+        return jsonify({'error': f'Failed to generate PDF report: {str(e)}'}), 500
+
+
 @app.route('/export-data')
 @login_required
 def export_data_page():
