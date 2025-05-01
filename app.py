@@ -29,14 +29,14 @@ from werkzeug.security import generate_password_hash, check_password_hash
 
 from models import (
     db, User, UserProfile, WorkoutSession, PasswordReset,
-    BMIHistory, MealLog, Subscription, OneRepMax, ShareableLink 
+    BMIHistory, MealLog, Subscription, OneRepMax, ShareableLink
 )
 
 from forms import (
     ResetPasswordRequestForm, ResetPasswordForm,
-    ChangeEmailForm, ChangePasswordForm, EditProfileForm, EditGoalsForm 
+    ChangeEmailForm, ChangePasswordForm, EditProfileForm, EditGoalsForm
 )
-
+from subscription_middleware import has_active_subscription
 from subscription_routes import subscription_bp
 from subscription_middleware import premium_required
 
@@ -107,6 +107,136 @@ def workout_session_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
+def generate_trend_chart(dates, data_points, title, ylabel, color='#45ffca'):
+    if not dates or not data_points or len(dates) != len(data_points):
+        return None
+    try:
+        import traceback
+        
+        fig, ax = plt.subplots(figsize=(8, 3.5))  
+        fig.patch.set_facecolor('#f8f9fa')  
+        ax.set_facecolor('#ffffff') 
+        
+        date_objects = [datetime.strptime(d, '%Y-%m-%d') for d in dates]
+        
+        consolidated_dates = []
+        consolidated_values = []
+        date_to_values = {}
+        
+        for date, value in zip(date_objects, data_points):
+            date_str = date.strftime('%Y-%m-%d')
+            if date_str not in date_to_values:
+                date_to_values[date_str] = []
+            date_to_values[date_str].append(value)
+        
+        for date_str, values in date_to_values.items():
+            consolidated_dates.append(datetime.strptime(date_str, '%Y-%m-%d'))
+            consolidated_values.append(sum(values))
+        
+        date_value_pairs = sorted(zip(consolidated_dates, consolidated_values))
+        consolidated_dates = [pair[0] for pair in date_value_pairs]
+        consolidated_values = [pair[1] for pair in date_value_pairs]
+        
+        ax.plot(consolidated_dates, consolidated_values, marker='o', linestyle='-', color=color, linewidth=2, markersize=5)
+        
+        unique_dates = set(consolidated_dates)
+        if len(unique_dates) <= 1:
+            single_date = consolidated_dates[0]
+            
+            date_min = single_date - timedelta(days=7)
+            date_max = single_date + timedelta(days=7)
+            ax.set_xlim(date_min, date_max)
+        else:
+            date_min = min(consolidated_dates)
+            date_max = max(consolidated_dates)
+            
+            date_min = date_min - timedelta(days=2)
+            date_max = date_max + timedelta(days=2)
+            
+            ax.set_xlim(date_min, date_max)
+        
+        max_val = max(consolidated_values) if consolidated_values and max(consolidated_values) > 0 else 1
+        ax.set_ylim(0, max_val * 1.2)
+        
+        ax.set_title(title, fontsize=14, color='#333', fontweight='bold')
+        ax.set_ylabel(ylabel, fontsize=11, color='#555')
+        ax.tick_params(axis='x', labelsize=9, colors='#555')
+        ax.tick_params(axis='y', labelsize=9, colors='#555')
+        ax.grid(True, linestyle='--', alpha=0.6, color='#ddd')
+        
+        date_range = (max(consolidated_dates) - min(consolidated_dates)).days if len(unique_dates) > 1 else 14
+        
+        if date_range <= 14:
+            ax.xaxis.set_major_formatter(mdates.DateFormatter('%b %d'))
+            ax.xaxis.set_major_locator(mdates.DayLocator(interval=1))
+        elif date_range <= 30:
+            ax.xaxis.set_major_formatter(mdates.DateFormatter('%b %d'))
+            ax.xaxis.set_major_locator(mdates.DayLocator(interval=3))
+        elif date_range <= 90:
+            ax.xaxis.set_major_formatter(mdates.DateFormatter('%b %d'))
+            ax.xaxis.set_major_locator(mdates.DayLocator(interval=7))
+        elif date_range <= 365:
+            ax.xaxis.set_major_formatter(mdates.DateFormatter('%b %Y'))
+            ax.xaxis.set_major_locator(mdates.MonthLocator())
+        else:
+            ax.xaxis.set_major_formatter(mdates.DateFormatter('%b %Y'))
+            ax.xaxis.set_major_locator(mdates.MonthLocator(interval=2))
+        
+        fig.autofmt_xdate(rotation=30, ha='right')
+        
+        ax.fill_between(consolidated_dates, 0, consolidated_values, color=color, alpha=0.1)
+        
+        if len(consolidated_values) < 10:
+            for i, (date, value) in enumerate(zip(consolidated_dates, consolidated_values)):
+                ax.annotate(f'{value:.1f}',
+                           xy=(date, value),
+                           xytext=(0, 5), 
+                           textcoords='offset points',
+                           ha='center',
+                           fontsize=8,
+                           color='#333')
+        
+        min_date_str = min(consolidated_dates).strftime('%Y-%m-%d')
+        max_date_str = max(consolidated_dates).strftime('%Y-%m-%d')
+        if min_date_str != max_date_str:
+            date_caption = f"Date range: {min_date_str} to {max_date_str}"
+        else:
+            date_caption = f"Date: {min_date_str}"
+        fig.text(0.5, 0.01, date_caption, ha='center', fontsize=8, color='#777')
+        
+        plt.tight_layout(rect=[0, 0.03, 1, 0.97])
+        
+        buf = BytesIO()
+        fig.savefig(buf, format='png', dpi=120, facecolor=fig.get_facecolor())  # Higher DPI
+        buf.seek(0)
+        img_base64 = base64.b64encode(buf.getvalue()).decode('utf-8')
+        buf.close()
+        plt.close(fig) 
+        return img_base64
+        
+    except Exception as e:
+        print(f"Error generating chart '{title}': {e}")
+        traceback.print_exc()  
+        plt.close()  
+        return None
+
+@app.route('/')
+def home():
+    return render_template('index.html')
+
+@app.route('/get-started')
+def get_started():
+    print("Get Started route accessed")
+    if current_user.is_authenticated:
+        print("User is authenticated")
+        if not current_user.profile:
+            print("User has no profile, redirecting to profile setup")
+            return redirect(url_for('profile_setup'))
+        print("User has profile, redirecting to dashboard")
+        return redirect(url_for('dashboard'))
+    print("User not authenticated, redirecting to login")
+    return redirect(url_for('login'))
+
 @login_manager.user_loader
 def load_user(user_id):
     try:
@@ -114,6 +244,33 @@ def load_user(user_id):
     except Exception as e:
         print(f"Error loading user: {e}")
         return None
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if current_user.is_authenticated:
+        return redirect(url_for('dashboard'))
+        
+    if request.method == 'POST':
+        try:
+            email = request.form.get('email')
+            password = request.form.get('password')
+            user = User.query.filter_by(email=email).first()
+
+            if user and user.check_password(password):
+                login_user(user)
+                user.last_login = datetime.utcnow()
+                db.session.commit()
+                
+                if not user.profile:
+                    return redirect(url_for('profile_setup'))
+                return redirect(url_for('dashboard'))
+
+            flash('Invalid email or password')
+        except Exception as e:
+            print(f"Login error: {e}")
+            flash('An error occurred during login')
+            
+    return render_template('login.html')
 
 def get_ang(a, b, c):
     if not all([a, b, c]): return 0
@@ -1917,14 +2074,6 @@ def profile_settings():
                            edit_profile_form=edit_profile_form,
                            edit_goals_form=edit_goals_form)
 
-if __name__ == '__main__':
-    with app.app_context():
-        try:
-            db.create_all() # 
-        except Exception as e:
-            print(f"Database initialization error: {e}")
-    app.run(debug=True, use_reloader=False)
-
 
 
 @app.route('/api/update-calorie-goal', methods=['POST'])
@@ -2121,7 +2270,17 @@ def generate_pdf_report():
 @app.route('/export-data')
 @login_required
 def export_data_page():
-    return render_template('export_data.html')
+    try:
+        is_premium = has_active_subscription()
+        print(f"User {current_user.id} premium status for /export-data: {is_premium}")
+
+        return render_template('export_data.html', is_premium=is_premium)
+
+    except Exception as e:
+        print(f"Error loading export page for user {current_user.id}: {e}")
+        traceback.print_exc()
+        flash("Error loading the export page. Please try again.", "error")
+        return render_template('export_data.html', is_premium=False)
     
     
 @app.route('/export-data/download', methods=['GET'])
