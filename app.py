@@ -2489,6 +2489,7 @@ def view_shared_workout(token):
     
     return render_template('shared_workout.html', workout=workout, user=user)
 
+<<<<<<< Updated upstream
 @app.route('/workout-efficiency')
 @login_required
 def workout_efficiency():
@@ -2675,6 +2676,187 @@ def simple_update_goal(goal):
         return "Error updating calorie goal", 500
    
 
+=======
+@app.route('/api/save-bmi', methods=['POST'])
+@login_required
+def save_bmi():
+    try:
+        data = request.get_json()
+        height = float(data.get('height'))
+        weight = float(data.get('weight'))
+        bmi = float(data.get('bmi'))
+        
+        bmi_record = BMIHistory(
+            user_id=current_user.id,
+            height=height,
+            weight=weight,
+            bmi=bmi
+        )
+        db.session.add(bmi_record)
+        
+        if current_user.profile:
+            current_user.profile.height = height
+            current_user.profile.weight = weight
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'BMI data saved successfully'
+        })
+        
+    except Exception as e:
+        print(f"Error saving BMI data: {e}")
+        db.session.rollback()
+        return jsonify({
+            'success': False,
+            'message': 'Failed to save BMI data'
+        }), 500
+
+@app.route('/profile/settings', methods=['GET', 'POST'])
+@login_required
+def profile_settings():
+    change_email_form = ChangeEmailForm()
+    change_password_form = ChangePasswordForm()
+    edit_profile_form = EditProfileForm(obj=current_user.profile) 
+    edit_goals_form = EditGoalsForm(obj=current_user.profile) 
+
+    if request.method == 'POST':
+        if change_email_form.submit_email.data and change_email_form.validate_on_submit():
+            new_email = change_email_form.new_email.data
+            password = change_email_form.password.data
+
+            if not current_user.check_password(password):
+                flash('Incorrect password.', 'error')
+            elif User.query.filter(User.email == new_email, User.id != current_user.id).first():
+                flash('That email address is already registered.', 'error')
+            else:
+                try:
+                    current_user.email = new_email
+                    db.session.commit()
+                    flash('Email address updated successfully!', 'success')
+                    return redirect(url_for('profile_settings'))
+                except Exception as e:
+                    db.session.rollback()
+                    print(f"Error changing email: {e}")
+                    flash('An error occurred while changing your email.', 'error')
+
+        elif change_password_form.submit_password.data and change_password_form.validate_on_submit():
+            current_password = change_password_form.current_password.data
+            new_password = change_password_form.new_password.data
+
+            if not current_user.check_password(current_password):
+                flash('Incorrect current password.', 'error')
+            else:
+                try:
+                    current_user.set_password(new_password)
+                    db.session.commit()
+                    flash('Password updated successfully!', 'success')
+                    return redirect(url_for('profile_settings'))
+                except Exception as e:
+                    db.session.rollback()
+                    print(f"Error changing password: {e}")
+                    flash('An error occurred while changing your password.', 'error')
+
+        elif edit_profile_form.submit_profile.data and edit_profile_form.validate_on_submit():
+            profile = current_user.profile
+            if not profile:
+                 profile = UserProfile(user_id=current_user.id)
+                 db.session.add(profile)
+
+            try:
+                profile.age = edit_profile_form.age.data
+                profile.height = edit_profile_form.height.data
+                profile.weight = edit_profile_form.weight.data
+                profile.fitness_level = edit_profile_form.fitness_level.data
+                profile.updated_at = datetime.utcnow()
+                db.session.commit()
+                flash('Profile information updated successfully!', 'success')
+                return redirect(url_for('profile_settings'))
+            except Exception as e:
+                db.session.rollback()
+                print(f"Error updating profile info: {e}")
+                flash('An error occurred while updating your profile information.', 'error')
+
+        elif edit_goals_form.submit_goals.data and edit_goals_form.validate_on_submit():
+            profile = current_user.profile
+            if not profile:
+                 profile = UserProfile(user_id=current_user.id)
+                 db.session.add(profile)
+
+            try:
+                profile.goals = edit_goals_form.goals.data
+                profile.updated_at = datetime.utcnow()
+                db.session.commit()
+                flash('Fitness goals updated successfully!', 'success')
+                return redirect(url_for('profile_settings'))
+            except Exception as e:
+                db.session.rollback()
+                print(f"Error updating goals: {e}")
+                flash('An error occurred while updating your fitness goals.', 'error')
+
+
+    return render_template('profile_settings.html',
+                           change_email_form=change_email_form,
+                           change_password_form=change_password_form,
+                           edit_profile_form=edit_profile_form,
+                           edit_goals_form=edit_goals_form)
+
+@app.route('/api/update-calorie-goal', methods=['POST'])
+@login_required
+def update_calorie_goal():
+    try:
+        data = request.get_json()
+        print(f"Received calorie goal update request: {data}")
+        
+        new_goal = data.get('calorie_goal')
+        print(f"New goal value: {new_goal}, type: {type(new_goal)}")
+        
+        if not new_goal or not isinstance(new_goal, int):
+            return jsonify({
+                'success': False,
+                'message': 'Invalid calorie goal'
+            }), 400
+            
+        if new_goal < 1200 or new_goal > 10000:
+            return jsonify({
+                'success': False,
+                'message': 'Calorie goal must be between 1200 and 10000'
+            }), 400
+        
+        if not current_user.profile:
+            print(f"Creating new profile for user {current_user.id}")
+            profile = UserProfile(
+                user_id=current_user.id,
+                calorie_goal=new_goal
+            )
+            db.session.add(profile)
+            db.session.commit()
+            print(f"Created new profile with calorie goal {new_goal}")
+            return jsonify({
+                'success': True,
+                'message': 'Profile created with calorie goal'
+            })
+        
+        current_user.profile.calorie_goal = new_goal
+        db.session.commit()
+        print(f"Updated calorie goal to {new_goal} for user {current_user.id}")
+        
+        return jsonify({
+            'success': True,
+            'message': 'Calorie goal updated successfully'
+        })
+        
+    except Exception as e:
+        print(f"Error updating calorie goal: {e}")
+        import traceback
+        print(traceback.format_exc())
+        db.session.rollback()
+        return jsonify({
+            'success': False,
+            'message': f'Server error updating calorie goal: {str(e)}'
+        }), 500
+>>>>>>> Stashed changes
 
 if __name__ == '__main__':
     with app.app_context():

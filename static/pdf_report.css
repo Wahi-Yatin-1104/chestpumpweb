@@ -1,0 +1,43 @@
+@page {
+    size: A4;
+    margin: 1.5cm;
+    @bottom-center {
+        content: "Page " counter(page) " of " counter(pages);
+        font-size: 9pt;
+        color: #666;
+    }
+}
+body { font-family: 'Helvetica', 'Arial', sans-serif; color: #333; line-height: 1.4; font-size: 10pt; }
+.report-header { text-align: center; margin-bottom: 1cm; }
+.report-header img.logo { max-height: 50px; margin-bottom: 0.5cm; }
+.report-header h1 { color: #00875a; font-size: 20pt; margin: 0; padding-bottom: 0.2cm; border-bottom: 2px solid #00875a;}
+.report-header p { font-size: 10pt; color: #555; margin-top: 0.3cm; }
+h2 { font-size: 14pt; color: #00695c; margin-top: 1cm; margin-bottom: 0.6cm; border-bottom: 1px solid #a7ffeb; padding-bottom: 0.2cm; page-break-after: avoid; }
+h3 { font-size: 11pt; color: #00796b; margin-top: 0.8cm; margin-bottom: 0.4cm; }
+table { width: 100%; border-collapse: collapse; margin-bottom: 0.8cm; page-break-inside: auto; font-size: 9pt; }
+tr { page-break-inside: avoid; page-break-after: auto; }
+th, td { border: 1px solid #ccc; padding: 6px 8px; text-align: left; vertical-align: top; word-wrap: break-word; }
+th { background-color: #e0f2f1; font-weight: bold; padding: 8px; }
+thead { display: table-header-group; }
+.section { page-break-inside: avoid; margin-bottom: 1cm; }
+.profile-section dl { margin-left: 10px; }
+.profile-section dt { font-weight: bold; color: #00796b; width: 120px; float: left; clear: left; }
+.profile-section dd { margin-left: 130px; margin-bottom: 5px; }
+ul { padding-left: 20px; margin-bottom: 0.8cm; }
+li { margin-bottom: 6px; }
+.chart-container { text-align: center; margin: 1cm 0; page-break-inside: avoid; }
+.chart-container img { max-width: 100%; height: auto; border: 1px solid #eee; margin-top: 0.5cm;}
+.exercise-name { font-weight: bold; color: #00695c; }
+.category { display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 8pt; text-transform: capitalize;}
+.category.excellent { background-color: #c8e6c9; color: #2e7d32; }
+.category.good { background-color: #dcedc8; color: #558b2f; }
+.category.average { background-color: #fff9c4; color: #f9a825; }
+.category.poor, .category.fair { background-color: #ffcdd2; color: #c62828; }
+.workout-details { margin-top: 4px; font-size: 8pt; color: #555; }
+.no-data { font-style: italic; color: #777; text-align: center; padding: 1cm; background-color: #f9f9f9; border: 1px dashed #ccc; margin-top: 0.5cm;}
+.recommendation-icon { display: inline-block; margin-right: 5px; color: #00695c; font-weight: bold; }
+.meal-type { display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 8pt; text-transform: capitalize; color: #fff; margin-right: 5px;}
+.meal-type.breakfast { background-color: #1e88e5; }
+.meal-type.lunch { background-color: #43a047; }
+.meal-type.dinner { background-color: #e53935; }
+.meal-type.snack { background-color: #fb8c00; }
