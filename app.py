@@ -1940,6 +1940,193 @@ def view_shared_workout(token):
     
     return render_template('shared_workout.html', workout=workout, user=user)
 
+@app.route('/workout-efficiency')
+@login_required
+def workout_efficiency():
+    try:
+        print("=== WORKOUT EFFICIENCY ROUTE ACCESSED ===")
+        
+        workouts = WorkoutSession.query.filter(
+            WorkoutSession.user_id == current_user.id,
+            WorkoutSession.is_completed == True
+        ).order_by(WorkoutSession.date).all()
+        
+        print(f"Found {len(workouts)} workouts")
+        
+        user_data = {
+            'name': current_user.name,
+            'email': current_user.email,
+            'age': current_user.profile.age if current_user.profile else None,
+            'height': current_user.profile.height if current_user.profile else None,
+            'weight': current_user.profile.weight if current_user.profile else None,
+            'fitness_level': current_user.profile.fitness_level if current_user.profile else 'beginner'
+        }
+        
+        workout_data = []
+        for workout in workouts:
+            workout_dict = {
+                'id': workout.id,
+                'date': workout.date.strftime('%Y-%m-%d'),
+                'duration': workout.duration or 0,
+                'calories_burned': workout.calories_burned or 0,
+                'exercise_data': workout.exercise_data or {}
+            }
+            workout_data.append(workout_dict)
+        
+        try:
+            from workout_analytics import WorkoutEfficiencyAnalyzer
+            analyzer = WorkoutEfficiencyAnalyzer(user_data, workout_data)
+            efficiency_report = analyzer.generate_report()
+            print("Analysis completed successfully")
+            
+            if 'overall_stats' not in efficiency_report:
+                efficiency_report['overall_stats'] = {
+                    'avg_score': 0, 
+                    'trend': 'Stable', 
+                    'improvement': 0, 
+                    'num_workouts': len(workout_data)
+                }
+            
+            if 'detailed_scores' not in efficiency_report:
+                efficiency_report['detailed_scores'] = []
+                
+            if 'recommendations' not in efficiency_report:
+                efficiency_report['recommendations'] = []
+                
+            if 'exercise_comparison' not in efficiency_report:
+                efficiency_report['exercise_comparison'] = {}
+            
+            for workout in efficiency_report.get('detailed_scores', []):
+                if 'efficiency_metrics' not in workout:
+                    workout['efficiency_metrics'] = {'intensity': 0, 'efficiency': 0}
+                if 'category' not in workout:
+                    workout['category'] = 'Average'
+            
+            return render_template('workout_efficiency.html', efficiency=efficiency_report)
+            
+        except ImportError as e:
+            print(f"Import error: {str(e)}")
+            
+            efficiency_scores = []
+            for workout in workout_data:
+                duration_min = max(workout['duration'] / 60, 0.1) 
+                calories = workout['calories_burned']
+                total_reps = sum(workout['exercise_data'].values())
+                
+                intensity = calories / duration_min if duration_min > 0 else 0
+                efficiency = calories / max(total_reps, 1) if total_reps > 0 else 0
+                
+                primary_exercise = 'unknown'
+                if workout['exercise_data']:
+                    primary_exercise = max(workout['exercise_data'].items(), key=lambda x: x[1])[0]
+                
+                score = (intensity * 0.6 + efficiency * 0.4) / 3
+                score = min(max(score, 0), 10) 
+                
+                category = 'Poor'
+                if score >= 8:
+                    category = 'Excellent'
+                elif score >= 6:
+                    category = 'Good'
+                elif score >= 4:
+                    category = 'Average'
+                
+                efficiency_scores.append({
+                    'date': workout['date'],
+                    'score': round(score, 1),
+                    'category': category,
+                    'primary_exercise': primary_exercise,
+                    'efficiency_metrics': {
+                        'intensity': round(intensity, 2),
+                        'efficiency': round(efficiency, 2)
+                    }
+                })
+            
+            avg_score = sum(w['score'] for w in efficiency_scores) / len(efficiency_scores) if efficiency_scores else 0
+            
+            trend = "Stable"
+            improvement = 0
+            if len(efficiency_scores) >= 2:
+                sorted_scores = sorted(efficiency_scores, key=lambda x: x['date'])
+                first_score = sorted_scores[0]['score']
+                last_score = sorted_scores[-1]['score']
+                
+                improvement = round(((last_score - first_score) / max(first_score, 0.1)) * 100, 1)
+                
+                if improvement > 10:
+                    trend = "Improving"
+                elif improvement < -10:
+                    trend = "Declining"
+            
+            recommendations = []
+            if trend == "Declining":
+                recommendations.append("Your workout efficiency is declining. Consider varying your routine or increasing intensity.")
+            elif trend == "Improving":
+                recommendations.append("Your workout efficiency is improving. Keep up the good work!")
+            else:
+                recommendations.append("Your workout efficiency is stable. Consider trying new exercises to improve.")
+            
+            simple_report = {
+                'overall_stats': {
+                    'avg_score': round(avg_score, 1),
+                    'trend': trend,
+                    'improvement': improvement,
+                    'num_workouts': len(efficiency_scores)
+                },
+                'detailed_scores': efficiency_scores,
+                'recommendations': recommendations,
+                'exercise_comparison': {} 
+            }
+            
+            print("Generated simplified efficiency report")
+            return render_template('workout_efficiency.html', efficiency=simple_report)
+            
+    except Exception as e:
+        print(f"Error generating efficiency report: {e}")
+        import traceback
+        traceback.print_exc()
+        
+        dummy_data = {
+            'overall_stats': {
+                'avg_score': 7.5,
+                'trend': 'Stable',
+                'improvement': 0,
+                'num_workouts': 0
+            },
+            'detailed_scores': [],
+            'recommendations': ['Error occurred: ' + str(e)],
+            'exercise_comparison': {}
+        }
+        
+        return render_template('workout_efficiency.html', efficiency=dummy_data)
+
+@app.route('/api/simple-update-goal/<int:goal>', methods=['GET'])
+@login_required
+def simple_update_goal(goal):
+    try:
+        if goal < 1200 or goal > 10000:
+            return "Error: Goal must be between 1200 and 10000", 400
+        
+        if not current_user.profile:
+            profile = UserProfile(
+                user_id=current_user.id,
+                calorie_goal=goal
+            )
+            db.session.add(profile)
+            db.session.commit()
+            return "Profile created with calorie goal"
+        
+        current_user.profile.calorie_goal = goal
+        db.session.commit()
+        return "Calorie goal updated successfully"
+        
+    except Exception as e:
+        print(f"Error in simple calorie goal update: {e}")
+        db.session.rollback()
+        return "Error updating calorie goal", 500
+   
+
+
 if __name__ == '__main__':
     with app.app_context():
         try:
